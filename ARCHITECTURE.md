@@ -1,7 +1,8 @@
 # E Track Flutter Architecture
 
 Clean architecture with a `core/` folder for cross-cutting concerns and
-`features/` for business capabilities.
+`features/` for business capabilities — currently expenses and tasks. Android is
+the only actively supported platform.
 
 ## Dependency rule
 
@@ -33,6 +34,9 @@ lib/
 ├── core/
 │   ├── constants/               # AppConstants, AppRoutes
 │   ├── error/failures.dart      # typed failures
+│   ├── network/
+│   │   ├── api_client.dart      # JSON GET wrapper over http
+│   │   └── token_provider.dart  # bearer token access abstraction
 │   ├── storage/
 │   │   ├── hive_service.dart    # box lifecycle + accessors
 │   │   └── secure_storage_service.dart
@@ -42,10 +46,18 @@ lib/
     │   ├── data/                # datasources, models, repository impl
     │   ├── domain/              # AppUser, AuthRepository
     │   └── presentation/        # AuthBloc, pages
-    └── expenses/
-        ├── data/datasources/expense_local_data_source.dart
-        ├── domain/entities/expense.dart
-        └── presentation/pages/expenses_page.dart
+    ├── expenses/
+    │   ├── data/datasources/expense_local_data_source.dart
+    │   ├── domain/entities/expense.dart
+    │   └── presentation/pages/expenses_page.dart
+    ├── tasks/
+    │   ├── data/datasources/task_local_data_source.dart
+    │   ├── domain/entities/task_item.dart
+    │   └── presentation/pages/tasks_page.dart
+    └── search/
+        ├── data/                # remote data source + repository impl
+        ├── domain/              # SearchResult entity + SearchRepository
+        └── presentation/        # search UI/Bloc (next phase)
 ```
 
 ## State management (Bloc)
@@ -70,6 +82,7 @@ then `SplashPage` reacts to `AuthBloc` state and routes to login/home.
 | --- | --- | --- |
 | Access/refresh tokens | `flutter_secure_storage` | `SecureStorageService` |
 | Expenses | Hive box `etrack_expenses` | `ExpenseLocalDataSource` |
+| Tasks | Hive box `etrack_tasks` | `TaskLocalDataSource` |
 | Offline sync outbox | Hive box `etrack_pending_sync` | `HiveService.pendingSyncBox` |
 | Settings/preferences | Hive box `etrack_settings` | `HiveService.settingsBox` |
 
@@ -79,8 +92,8 @@ on boxes.
 
 ## Offline-first plan
 
-1. Every create/update writes to Hive first and marks the record `isSynced =
-   false`, then appends an operation to the pending sync box.
+1. Every expense/task create or update writes to Hive first and marks the
+   record `isSynced = false`, then appends an operation to the pending sync box.
 2. A sync service (next phase) drains the outbox in order when online, attaching
    the bearer token from secure storage.
 3. Server responses replace local records and set `isSynced = true`.
@@ -97,6 +110,21 @@ on boxes.
 4. On startup, `AuthCheckRequested` reads the token and later validates it with
    `GET /api/auth/me`.
 5. `401` responses trigger token cleanup and an `unauthenticated` state.
+
+## Global search
+
+`GET /api/search?q=<text>&limit=<1..50>` returns expenses and tasks for the
+authenticated user, merged newest-first. On the client:
+
+- `ApiClient` (core/network) builds the URL and maps HTTP failures to
+  `Failure` values.
+- `TokenProvider` supplies the bearer token without exposing the storage plugin
+  to features.
+- `SearchRemoteDataSourceImpl` calls `/search` and parses the response.
+- `SearchRepository` is the only API the presentation layer should call.
+
+A `SearchBloc` and search page will be added in the features phase. Search
+results remain read-only from MongoDB for now; local caching comes with sync.
 
 ## Theming
 

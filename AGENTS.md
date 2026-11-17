@@ -4,18 +4,21 @@ Instructions for AI agents and contributors working in this repository.
 
 ## Project
 
-- App name: **E Track** (offline-first expense tracker).
+- App name: **E Track** (offline-first expense **and task** tracker).
 - Pub package: `e_track`. Do not rename folders; paths are fixed by the project
   owner (`D:\Sagar\Flutter\vnr_flutter`).
+- Platform focus: **Android only**. From now on, do not change anything under
+  `ios/`, `web/`, `macos/`, `windows/` or `linux/` unless explicitly asked.
 - Stack: Flutter 3.47 / Dart 3.13, flutter_bloc 9, get_it 9, go_router 18,
-  flutter_secure_storage 11, hive 2 + hive_flutter 1, intl, uuid.
+  flutter_secure_storage 11, hive 2 + hive_flutter 1, intl, uuid, http 1.
 - Backend lives separately at `D:\Sagar\Deno\vnr_deno` (Hono + Deno + Mongoose).
 
 ## Current phase
 
-Foundation only. Storage, DI, routing, theming and auth state scaffolding exist.
-`AuthRemoteDataSource.signIn` is deliberately a stub. Do not build the full
-expense UI or HTTP layer unless asked.
+Foundation only. Storage, DI, routing, theming and auth state scaffolding exist
+for both expenses and tasks. `AuthRemoteDataSource.signIn` is deliberately a
+stub. The global search client is wired through `SearchRepository`, but its UI
+is not built yet. Do not build the full expense/task UI unless asked.
 
 ## Rules
 
@@ -38,6 +41,11 @@ expense UI or HTTP layer unless asked.
    generated with `dart run build_runner build --delete-conflicting-outputs`.
 10. Update `README.md` and `ARCHITECTURE.md` when structure or behavior changes.
     `GEMINI.md` references this file; keep it aligned.
+11. Android is the only target platform for active work. Do not edit `ios/`,
+    `web/`, `macos/`, `windows/` or `linux/` from now on unless the user asks.
+    Keep changes to `lib/`, `test/`, `android/` and the Markdown docs.
+12. Global search goes through `SearchRepository`. Widgets must not call
+    `ApiClient` directly; tokens come only from `TokenProvider`.
 
 ## Commands
 
@@ -46,7 +54,7 @@ flutter pub get
 flutter analyze
 flutter test
 dart run build_runner build --delete-conflicting-outputs   # when adapters change
-flutter run --dart-define=ETRACK_API_BASE_URL=http://192.168.1.10:8000/api
+flutter run --dart-define=ETRACK_API_BASE_URL=http://192.168.1.10:8000
 ```
 
 ## Style

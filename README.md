@@ -1,11 +1,15 @@
 # E Track (Flutter)
 
-Offline-first expense tracker client. The app writes locally first (Hive) and is
-designed to sync with the E Track Deno API when connectivity is available.
+Offline-first expense **and task** tracker client. The app writes locally first
+(Hive) and is designed to sync with the E Track Deno API when connectivity is
+available.
+
+> **Platform focus:** Android only. Other platform folders are intentionally
+> left untouched for now.
 
 > **Status:** foundation phase. Architecture, theming, routing, DI, storage and
-> auth state scaffolding are in place. API calls and expense UI are intentionally
-> stubbed for the next phase.
+> auth state scaffolding are in place for expenses and tasks. API calls and the
+> expense/task UIs are intentionally stubbed for the next phase.
 
 ## Stack
 
@@ -20,6 +24,7 @@ designed to sync with the E Track Deno API when connectivity is available.
 | Code generation | `build_runner` + `hive_generator` (for future typed adapters) |
 | Dates/formatting | `intl` |
 | IDs | `uuid` |
+| HTTP client | `http` 1 |
 
 ## Getting started
 
@@ -30,11 +35,12 @@ flutter test
 flutter run
 ```
 
-Point the app at a different API host (Android emulator default is
-`http://10.0.2.2:8000/api`):
+The app points to the deployed API by default:
+`https://vnr-deno.itssagarbro.deno.net/`. `ApiClient` appends `/api`, so pass
+the host root when overriding it for local testing:
 
 ```bash
-flutter run --dart-define=ETRACK_API_BASE_URL=http://192.168.1.10:8000/api
+flutter run --dart-define=ETRACK_API_BASE_URL=http://192.168.1.10:8000
 ```
 
 When typed Hive adapters are added, regenerate them with:
@@ -55,11 +61,14 @@ lib/
   core/
     constants/                    # app name, API base URL, storage keys, routes
     error/failures.dart           # domain failures
+    network/                      # ApiClient, TokenProvider
     storage/                      # HiveService, SecureStorageService
     theme/app_theme.dart          # minimal light + dark Material 3 themes
   features/
     auth/                         # login flow (data / domain / presentation)
     expenses/                     # expense entity, Hive data source, placeholder page
+    tasks/                        # task entity, Hive data source, placeholder page
+    search/                       # global search client (API -> domain)
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan.
@@ -68,10 +77,13 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 
 - App boots with Hive boxes opened and dependencies registered.
 - Minimal clean light/dark UI driven by `AppTheme`, following system brightness.
-- `go_router` routes for splash, login and home/expenses.
+- `go_router` routes for splash, login, expenses and tasks.
 - `AuthBloc` checks a stored token, handles sign-in/sign-out states and reports
   errors. The remote data source is a documented stub until the API phase.
-- Expense entity and Hive-backed local data source are ready for the feature UI.
+- Expense and task entities with Hive-backed local data sources are ready for
+  the feature UIs. Tasks support categories: Personal, Work, Travel, Food, Other.
+- Global search client calls `GET /api/search` with the stored bearer token and
+  parses combined expense/task results.
 
 ## Next phase
 
@@ -79,7 +91,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
    `GET /api/auth/me` using the bearer token.
 2. Add the HTTP client, token refresh and auth-aware router redirects.
 3. Build the expense list/add flow on top of `ExpenseLocalDataSource`.
-4. Add the outbox sync worker and conflict handling.
+4. Build the task list/add flow on top of `TaskLocalDataSource`.
+5. Wire `SearchRepository` into a search UI with a `SearchBloc`.
+6. Add the outbox sync worker and conflict handling.
 
 ## Related documents
 
