@@ -25,10 +25,27 @@ class _FakeExpenses implements ExpenseRepository {
   List<Expense> getExpenses() => items;
 
   @override
+  Expense? findById(String id) {
+    for (final expense in items) {
+      if (expense.id == id) return expense;
+    }
+    return null;
+  }
+
+  @override
   Future<void> cacheExpense(Expense expense) async {
     items.add(expense);
     _changes.add(null);
   }
+
+  @override
+  Future<void> deleteExpense(String id) async {}
+
+  @override
+  Future<void> applyRemoteExpense(Expense expense) async {}
+
+  @override
+  Future<void> markSynced(String id, {DateTime? updatedAt}) async {}
 }
 
 class _FakeTasks implements TaskRepository {
@@ -44,10 +61,27 @@ class _FakeTasks implements TaskRepository {
   List<TaskItem> getTasks() => items;
 
   @override
+  TaskItem? findById(String id) {
+    for (final task in items) {
+      if (task.id == id) return task;
+    }
+    return null;
+  }
+
+  @override
   Future<void> cacheTask(TaskItem task) async {
     items.add(task);
     _changes.add(null);
   }
+
+  @override
+  Future<void> deleteTask(String id) async {}
+
+  @override
+  Future<void> applyRemoteTask(TaskItem task) async {}
+
+  @override
+  Future<void> markSynced(String id, {DateTime? updatedAt}) async {}
 }
 
 class _FakeBudget implements BudgetRepository {

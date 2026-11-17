@@ -48,6 +48,43 @@ class ApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> putJson(
+    String path, {
+    Map<String, dynamic>? body,
+    String? token,
+  }) async {
+    final uri = Uri.parse('$_baseUrl$path');
+    return _send(
+      () => _client.put(
+        uri,
+        headers: _headers(token, withBody: true),
+        body: jsonEncode(body ?? const <String, dynamic>{}),
+      ),
+    );
+  }
+
+  /// Returns false when the record is already gone and [missingIsSuccess] is
+  /// set, which makes offline deletes safe to retry.
+  Future<bool> deleteJson(
+    String path, {
+    String? token,
+    bool missingIsSuccess = false,
+  }) async {
+    final uri = Uri.parse('$_baseUrl$path');
+    late final http.Response response;
+    try {
+      response = await _client.delete(uri, headers: _headers(token));
+    } on http.ClientException {
+      throw const NetworkFailure('Unable to reach the server.');
+    } catch (_) {
+      throw const UnknownFailure('Something went wrong while calling the API.');
+    }
+
+    if (response.statusCode >= 200 && response.statusCode < 300) return true;
+    if (missingIsSuccess && response.statusCode == 404) return false;
+    throw _mapError(response);
+  }
+
   Map<String, String> _headers(String? token, {bool withBody = false}) => {
     'Accept': 'application/json',
     if (withBody) 'Content-Type': 'application/json',

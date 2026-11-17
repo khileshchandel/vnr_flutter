@@ -1,18 +1,25 @@
 import 'package:get_it/get_it.dart';
 
+import '../auth/user_id_provider.dart';
 import '../network/api_client.dart';
 import '../network/token_provider.dart';
 import '../storage/hive_service.dart';
 import '../storage/secure_storage_service.dart';
+import '../sync/hive_sync_outbox.dart';
+import '../sync/sync_coordinator.dart';
+import '../sync/sync_cursor_store.dart';
+import '../sync/sync_outbox.dart';
 import '../../features/auth/data/datasources/auth_local_data_source.dart';
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/expenses/data/datasources/expense_local_data_source.dart';
+import '../../features/expenses/data/datasources/expense_remote_data_source.dart';
 import '../../features/expenses/data/repositories/expense_repository_impl.dart';
 import '../../features/expenses/domain/repositories/expense_repository.dart';
 import '../../features/tasks/data/datasources/task_local_data_source.dart';
+import '../../features/tasks/data/datasources/task_remote_data_source.dart';
 import '../../features/tasks/data/repositories/task_repository_impl.dart';
 import '../../features/tasks/domain/repositories/task_repository.dart';
 import '../../features/home/data/datasources/budget_local_data_source.dart';
@@ -39,6 +46,17 @@ Future<void> initDependencies() async {
     () => SecureTokenProvider(getIt<SecureStorageService>()),
   );
 
+  final userIdProvider = MutableUserIdProvider();
+  getIt.registerLazySingleton<UserIdProvider>(() => userIdProvider);
+  getIt.registerLazySingleton<MutableUserIdProvider>(() => userIdProvider);
+
+  getIt.registerLazySingleton<SyncOutbox>(
+    () => HiveSyncOutbox(HiveService.pendingSyncBox, getIt<UserIdProvider>()),
+  );
+  getIt.registerLazySingleton<SyncCursorStore>(
+    () => HiveSyncCursorStore(HiveService.settingsBox, getIt<UserIdProvider>()),
+  );
+
   // Auth
   getIt.registerLazySingleton<AuthLocalDataSource>(
     () => AuthLocalDataSourceImpl(getIt<SecureStorageService>()),
@@ -53,18 +71,41 @@ Future<void> initDependencies() async {
 
   // Expenses (local-first data source + domain repository)
   getIt.registerLazySingleton<ExpenseLocalDataSource>(
-    () => ExpenseLocalDataSourceImpl(HiveService.expensesBox),
+    () => ExpenseLocalDataSourceImpl(
+      HiveService.expensesBox,
+      getIt<UserIdProvider>(),
+    ),
+  );
+  getIt.registerLazySingleton<ExpenseRemoteDataSource>(
+    () => ExpenseRemoteDataSourceImpl(getIt<ApiClient>()),
   );
   getIt.registerLazySingleton<ExpenseRepository>(
-    () => ExpenseRepositoryImpl(getIt<ExpenseLocalDataSource>()),
+    () => ExpenseRepositoryImpl(getIt(), getIt()),
   );
 
   // Tasks (local-first data source + domain repository)
   getIt.registerLazySingleton<TaskLocalDataSource>(
-    () => TaskLocalDataSourceImpl(HiveService.tasksBox),
+    () =>
+        TaskLocalDataSourceImpl(HiveService.tasksBox, getIt<UserIdProvider>()),
+  );
+  getIt.registerLazySingleton<TaskRemoteDataSource>(
+    () => TaskRemoteDataSourceImpl(getIt<ApiClient>()),
   );
   getIt.registerLazySingleton<TaskRepository>(
-    () => TaskRepositoryImpl(getIt<TaskLocalDataSource>()),
+    () => TaskRepositoryImpl(getIt(), getIt()),
+  );
+
+  // Sync: drains the outbox, then pulls server changes into Hive.
+  getIt.registerLazySingleton<SyncService>(
+    () => SyncCoordinator(
+      tokenProvider: getIt<TokenProvider>(),
+      expenses: getIt<ExpenseRepository>(),
+      tasks: getIt<TaskRepository>(),
+      expenseRemote: getIt<ExpenseRemoteDataSource>(),
+      taskRemote: getIt<TaskRemoteDataSource>(),
+      outbox: getIt<SyncOutbox>(),
+      cursorStore: getIt<SyncCursorStore>(),
+    ),
   );
 
   // Dashboard (budget + local expense/task summaries)

@@ -7,22 +7,35 @@ import '../../domain/repositories/task_repository.dart';
 
 final _dateFormat = DateFormat.yMMMd();
 
-Future<void> showAddTaskSheet(
+Future<void> showTaskSheet(
   BuildContext context, {
   required TaskRepository repository,
+  TaskItem? task,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => AddTaskSheet(repository: repository),
+    builder: (_) => AddTaskSheet(repository: repository, task: task),
   );
 }
 
+Future<void> showAddTaskSheet(
+  BuildContext context, {
+  required TaskRepository repository,
+}) => showTaskSheet(context, repository: repository);
+
+Future<void> showEditTaskSheet(
+  BuildContext context, {
+  required TaskRepository repository,
+  required TaskItem task,
+}) => showTaskSheet(context, repository: repository, task: task);
+
 class AddTaskSheet extends StatefulWidget {
-  const AddTaskSheet({super.key, required this.repository});
+  const AddTaskSheet({super.key, required this.repository, this.task});
 
   final TaskRepository repository;
+  final TaskItem? task;
 
   @override
   State<AddTaskSheet> createState() => _AddTaskSheetState();
@@ -30,11 +43,23 @@ class AddTaskSheet extends StatefulWidget {
 
 class _AddTaskSheetState extends State<AddTaskSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _noteController = TextEditingController();
-  TaskCategory _category = TaskCategory.personal;
-  DateTime? _dueDate;
+  late final TextEditingController _titleController;
+  late final TextEditingController _noteController;
+  late TaskCategory _category;
+  late DateTime? _dueDate;
   bool _saving = false;
+
+  bool get _isEditing => widget.task != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final task = widget.task;
+    _titleController = TextEditingController(text: task?.title ?? '');
+    _noteController = TextEditingController(text: task?.note ?? '');
+    _category = task?.category ?? TaskCategory.personal;
+    _dueDate = task?.dueDate;
+  }
 
   @override
   void dispose() {
@@ -60,11 +85,14 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     setState(() => _saving = true);
     final note = _noteController.text.trim();
     final task = TaskItem(
-      id: const Uuid().v4(),
+      id: widget.task?.id ?? const Uuid().v4(),
       title: _titleController.text.trim(),
       category: _category,
       note: note.isEmpty ? null : note,
       dueDate: _dueDate,
+      isCompleted: widget.task?.isCompleted ?? false,
+      isSynced: widget.task?.isSynced ?? false,
+      updatedAt: widget.task?.updatedAt,
     );
 
     await widget.repository.cacheTask(task);
@@ -85,7 +113,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Add task',
+              _isEditing ? 'Edit task' : 'Add task',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -152,7 +180,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save task'),
+                  : Text(_isEditing ? 'Save changes' : 'Save task'),
             ),
           ],
         ),

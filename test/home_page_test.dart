@@ -77,7 +77,19 @@ class _StaticExpenses implements ExpenseRepository {
   List<Expense> getExpenses() => items;
 
   @override
+  Expense? findById(String id) => null;
+
+  @override
   Future<void> cacheExpense(Expense expense) async {}
+
+  @override
+  Future<void> deleteExpense(String id) async {}
+
+  @override
+  Future<void> applyRemoteExpense(Expense expense) async {}
+
+  @override
+  Future<void> markSynced(String id, {DateTime? updatedAt}) async {}
 }
 
 class _StaticTasks implements TaskRepository {
@@ -92,7 +104,19 @@ class _StaticTasks implements TaskRepository {
   List<TaskItem> getTasks() => items;
 
   @override
+  TaskItem? findById(String id) => null;
+
+  @override
   Future<void> cacheTask(TaskItem task) async {}
+
+  @override
+  Future<void> deleteTask(String id) async {}
+
+  @override
+  Future<void> applyRemoteTask(TaskItem task) async {}
+
+  @override
+  Future<void> markSynced(String id, {DateTime? updatedAt}) async {}
 }
 
 class _StaticBudget implements BudgetRepository {

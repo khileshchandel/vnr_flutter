@@ -33,6 +33,8 @@ class TaskItem {
     this.dueDate,
     this.isCompleted = false,
     this.isSynced = false,
+    this.updatedAt,
+    this.deletedAt,
   });
 
   final String id;
@@ -42,6 +44,8 @@ class TaskItem {
   final DateTime? dueDate;
   final bool isCompleted;
   final bool isSynced;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -51,10 +55,41 @@ class TaskItem {
     'dueDate': dueDate?.toIso8601String(),
     'isCompleted': isCompleted,
     'isSynced': isSynced,
+    'updatedAt': updatedAt?.toIso8601String(),
+    'deletedAt': deletedAt?.toIso8601String(),
   };
+
+  TaskItem copyWith({
+    String? title,
+    TaskCategory? category,
+    String? note,
+    DateTime? dueDate,
+    bool? isCompleted,
+    bool? isSynced,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+    bool clearNote = false,
+    bool clearDueDate = false,
+    bool clearUpdatedAt = false,
+    bool clearDeletedAt = false,
+  }) {
+    return TaskItem(
+      id: id,
+      title: title ?? this.title,
+      category: category ?? this.category,
+      note: clearNote ? null : (note ?? this.note),
+      dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
+      isCompleted: isCompleted ?? this.isCompleted,
+      isSynced: isSynced ?? this.isSynced,
+      updatedAt: clearUpdatedAt ? null : (updatedAt ?? this.updatedAt),
+      deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
+    );
+  }
 
   factory TaskItem.fromJson(Map<String, dynamic> json) {
     final dueDate = json['dueDate'] as String?;
+    final updatedAt = json['updatedAt'] as String?;
+    final deletedAt = json['deletedAt'] as String?;
 
     return TaskItem(
       id: json['id'] as String,
@@ -63,9 +98,11 @@ class TaskItem {
         json['category'] as String? ?? 'Personal',
       ),
       note: json['note'] as String?,
-      dueDate: dueDate == null ? null : DateTime.parse(dueDate),
+      dueDate: dueDate == null ? null : DateTime.tryParse(dueDate),
       isCompleted: json['isCompleted'] as bool? ?? false,
       isSynced: json['isSynced'] as bool? ?? false,
+      updatedAt: updatedAt == null ? null : DateTime.tryParse(updatedAt),
+      deletedAt: deletedAt == null ? null : DateTime.tryParse(deletedAt),
     );
   }
 }

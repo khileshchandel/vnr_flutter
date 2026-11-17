@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/sync/sync_coordinator.dart';
+import '../../../../core/sync/sync_feedback.dart';
 import '../../domain/entities/task_item.dart';
 import '../../domain/repositories/task_repository.dart';
 import '../widgets/add_task_sheet.dart';
@@ -39,15 +41,49 @@ class _TasksPageState extends State<TasksPage> {
     super.dispose();
   }
 
+  Future<void> _sync() async {
+    final result = await context.read<SyncService>().run();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(syncMessage(result))));
+  }
+
+  Future<void> _delete(TaskItem task) async {
+    await _repository.deleteTask(task.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('${task.title} deleted'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => unawaited(_repository.cacheTask(task)),
+          ),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tasks')),
+      appBar: AppBar(
+        title: const Text('Tasks'),
+        actions: [
+          IconButton(
+            tooltip: 'Sync now',
+            icon: const Icon(Icons.sync_outlined),
+            onPressed: _sync,
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
-          setState(() => _tasks = _repository.getTasks());
+          await _sync();
+          if (mounted) setState(() => _tasks = _repository.getTasks());
         },
         child: _tasks.isEmpty
             ? ListView(
@@ -87,25 +123,48 @@ class _TasksPageState extends State<TasksPage> {
                   final due = task.dueDate == null
                       ? 'No due date'
                       : 'Due ${_dateFormat.format(task.dueDate!)}';
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      task.isCompleted
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      color: task.isCompleted
-                          ? theme.colorScheme.primary
-                          : null,
-                    ),
-                    title: Text(
-                      task.title,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        decoration: task.isCompleted
-                            ? TextDecoration.lineThrough
-                            : null,
+                  return Dismissible(
+                    key: ValueKey(task.id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      color: theme.colorScheme.errorContainer,
+                      child: Icon(
+                        Icons.delete_outline,
+                        color: theme.colorScheme.onErrorContainer,
                       ),
                     ),
-                    subtitle: Text('${task.category.wireValue} · $due'),
+                    onDismissed: (_) => _delete(task),
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        task.isCompleted
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        color: task.isCompleted
+                            ? theme.colorScheme.primary
+                            : null,
+                      ),
+                      title: Text(
+                        task.title,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          decoration: task.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                      ),
+                      subtitle: Text('${task.category.wireValue} · $due'),
+                      trailing: IconButton(
+                        tooltip: 'Edit task',
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        onPressed: () => showEditTaskSheet(
+                          context,
+                          repository: _repository,
+                          task: task,
+                        ),
+                      ),
+                    ),
                   );
                 },
               ),

@@ -21,8 +21,10 @@ tasks. Sign-in and sign-up call the real API through `AuthRemoteDataSource`; the
 `SearchRepository` through `SearchBloc`; the `/home` dashboard shows an editable
 budget, spend summary, category donut and recent tasks/expenses with pull-to-refresh,
 add and "See all" actions. Profile shows the signed-in user and signs out after
-confirmation. Local expense/task add sheets and list pages work and emit repository
-changes that refresh the dashboard. Edit/delete and backend sync are not built yet.
+confirmation. Expense/task add and edit sheets, swipe-to-delete with an Undo
+snackbar, and list/dashboard refresh via repository `changes` all work. Records
+are written to Hive first, queued in an outbox and synced to the Deno API by
+`SyncCoordinator` (auto on sign-in/resume, manual via sync icon and pull-to-refresh).
 
 ## Rules
 
@@ -51,6 +53,15 @@ changes that refresh the dashboard. Edit/delete and backend sync are not built y
     Keep changes to `lib/`, `test/`, `android/` and the Markdown docs.
 12. Global search goes through `SearchRepository`. Widgets must not call
     `ApiClient` directly; tokens come only from `TokenProvider`.
+13. Offline-first writes: repositories write to Hive first, mark the record
+    `isSynced = false` and enqueue in `SyncOutbox`. Only remote data sources call
+    `ApiClient`. Never block the UI on the network.
+14. Hive record keys are namespaced by the active `UserIdProvider` value
+    (`<userId>::<recordId>`); outbox entries and sync cursors are per-user too.
+    Do not introduce a single shared namespace.
+15. Sync runs through the injectable `SyncService`/`SyncCoordinator`; conflicts
+    favour unsynced local records, and server tombstones only remove synced local
+    records. Undo re-queues an upsert rather than a delete.
 
 ## Commands
 

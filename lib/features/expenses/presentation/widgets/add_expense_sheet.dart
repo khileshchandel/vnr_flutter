@@ -16,22 +16,35 @@ const _categories = <String>[
 
 final _dateFormat = DateFormat.yMMMd();
 
-Future<void> showAddExpenseSheet(
+Future<void> showExpenseSheet(
   BuildContext context, {
   required ExpenseRepository repository,
+  Expense? expense,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => AddExpenseSheet(repository: repository),
+    builder: (_) => AddExpenseSheet(repository: repository, expense: expense),
   );
 }
 
+Future<void> showAddExpenseSheet(
+  BuildContext context, {
+  required ExpenseRepository repository,
+}) => showExpenseSheet(context, repository: repository);
+
+Future<void> showEditExpenseSheet(
+  BuildContext context, {
+  required ExpenseRepository repository,
+  required Expense expense,
+}) => showExpenseSheet(context, repository: repository, expense: expense);
+
 class AddExpenseSheet extends StatefulWidget {
-  const AddExpenseSheet({super.key, required this.repository});
+  const AddExpenseSheet({super.key, required this.repository, this.expense});
 
   final ExpenseRepository repository;
+  final Expense? expense;
 
   @override
   State<AddExpenseSheet> createState() => _AddExpenseSheetState();
@@ -39,11 +52,25 @@ class AddExpenseSheet extends StatefulWidget {
 
 class _AddExpenseSheetState extends State<AddExpenseSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _amountController = TextEditingController();
-  String _category = _categories.first;
-  DateTime _date = DateTime.now();
+  late final TextEditingController _titleController;
+  late final TextEditingController _amountController;
+  late String _category;
+  late DateTime _date;
   bool _saving = false;
+
+  bool get _isEditing => widget.expense != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final expense = widget.expense;
+    _titleController = TextEditingController(text: expense?.title ?? '');
+    _amountController = TextEditingController(
+      text: expense == null ? '' : expense.amount.toStringAsFixed(2),
+    );
+    _category = expense?.category ?? _categories.first;
+    _date = expense?.date ?? DateTime.now();
+  }
 
   @override
   void dispose() {
@@ -67,11 +94,14 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
 
     setState(() => _saving = true);
     final expense = Expense(
-      id: const Uuid().v4(),
+      id: widget.expense?.id ?? const Uuid().v4(),
       title: _titleController.text.trim(),
       amount: double.parse(_amountController.text.trim()),
       category: _category,
       date: _date,
+      note: widget.expense?.note,
+      isSynced: widget.expense?.isSynced ?? false,
+      updatedAt: widget.expense?.updatedAt,
     );
 
     await widget.repository.cacheExpense(expense);
@@ -92,7 +122,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Add expense',
+              _isEditing ? 'Edit expense' : 'Add expense',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -153,7 +183,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save expense'),
+                  : Text(_isEditing ? 'Save changes' : 'Save expense'),
             ),
           ],
         ),

@@ -9,8 +9,10 @@ available.
 
 > **Status:** architecture, theming, routing, DI, storage and state scaffolding
 > are in place. Sign-in/sign-up, session restore, the API-backed search page, the
-> dashboard, bottom navigation, profile page and local expense/task add flows are
-> implemented. Edit/delete and backend sync for those records are not built yet.
+> dashboard, bottom navigation, profile page and expense/task add flows are
+> implemented. Records are stored locally first in Hive, queued in an outbox and
+> synced to the Deno API when online. Edit sheets, swipe-to-delete with an Undo
+> snackbar and manual/auto sync are all built.
 
 ## Stack
 
@@ -59,17 +61,19 @@ lib/
     app.dart                      # ETrackApp: BlocProvider, themes, router
     router/app_router.dart        # go_router route table + stateful shell
     navigation/                   # bottom navigation shell
-    di/injection.dart             # get_it registrations
   core/
+    di/injection.dart             # get_it registrations
+    auth/user_id_provider.dart    # active account id for per-user Hive keys
     constants/                    # app name, API base URL, storage keys, routes
     error/failures.dart           # domain failures
-    network/                      # ApiClient, TokenProvider
+    network/                      # ApiClient (GET/PUT/POST/PATCH/DELETE), TokenProvider
     storage/                      # HiveService, SecureStorageService
+    sync/                         # outbox, cursors, SyncCoordinator (offline-first)
     theme/app_theme.dart          # minimal light + dark Material 3 themes
   features/
     auth/                         # login flow (data / domain / presentation)
-    expenses/                     # entity, local data source, repository, list + add sheet
-    tasks/                        # entity, local data source, repository, list + add sheet
+    expenses/                     # entity, local + remote data sources, repository, list + add/edit sheet
+    tasks/                        # entity, local + remote data sources, repository, list + add/edit sheet
     home/                         # dashboard: budget, summary bloc, charts, tabs
     profile/                      # profile page with sign-out confirmation
     search/                       # global search client, bloc and search page
@@ -87,10 +91,16 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 - `AuthBloc` handles sign-in/sign-up and sign-out. `AuthRemoteDataSource` calls
   `POST /api/auth/login`, `POST /api/auth/register` and `GET /api/auth/me`; the
   token is kept in `flutter_secure_storage` and API error messages reach the UI.
-- Expense and task entities with Hive-backed local data sources. The add sheets
-  save real records locally; both list pages show what was added and refresh the
-  dashboard automatically. Tasks support categories: Personal, Work, Travel,
-  Food, Other.
+- Expense and task entities with Hive-backed local data sources, namespaced by
+  the signed-in user id. Add/edit sheets save records locally; both list pages
+  show records, refresh the dashboard automatically, open an edit sheet from the
+  pencil icon, and support swipe-to-delete with an Undo snackbar. Tasks support
+  categories: Personal, Work, Travel, Food, Other.
+- Offline-first sync: every local write is queued in `etrack_pending_sync`.
+  `SyncCoordinator` drains the outbox to the API, then pulls changes using
+  per-entity `updatedAfter` cursors. It runs on sign-in, on app resume, on
+  pull-to-refresh and from the sync button in each list app bar. Local edits win
+  until acknowledged; server tombstones remove only synced local records.
 - Dashboard home screen with an editable total budget (default ₹50,000, saved in
   Hive), total spend, remaining balance, a progress bar and a category donut
   drawn with `CustomPainter`. Recent tasks and expenses appear in tabs with add
@@ -104,9 +114,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 ## Next phase
 
 1. Add token refresh and automatic retry for expired tokens.
-2. Add edit/delete flows on top of `ExpenseRepository` and `TaskRepository`.
-3. Switch the dashboard totals to the sync API once expense CRUD lands.
-4. Add the outbox sync worker and conflict handling.
+2. Add a background sync worker (currently sync runs on resume and manual refresh).
+3. Batch outbox operations into a single API call for large offline queues.
+4. Surface sync status (pending/conflict indicators) in the list items.
 
 ## Related documents
 

@@ -17,12 +17,14 @@ changes; it is the source of truth for stack, structure and conventions.
   storage: Hive via `lib/core/storage/hive_service.dart`, tokens via
   `lib/core/storage/secure_storage_service.dart`;
   HTTP: `lib/core/network/api_client.dart`, global search via
-  `lib/features/search/`.
+  `lib/features/search/`;
+  offline sync: `lib/core/sync/` (outbox, cursors, `SyncCoordinator`), per-user
+  Hive keys via `lib/core/auth/user_id_provider.dart`.
 - Current scope: auth and the API-backed Search tab call the real API; the home
   dashboard renders local expense/task summaries with an editable budget and
   pull-to-refresh; bottom tabs are Home, Search and Profile (with confirmed
-  sign-out). Local expense/task add sheets and lists work; edit/delete and sync
-  are not built yet.
+  sign-out). Expense/task add + edit sheets, swipe-to-delete with Undo, and an
+  outbox-based sync to the Deno API (auto on resume + manual) all work.
 
 ## Expectations
 

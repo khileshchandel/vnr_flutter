@@ -28,20 +28,27 @@ goes through domain interfaces or shared core services.
 ```text
 lib/
 ├── app/                         # Application wiring
-│   ├── app.dart                 # ETrackApp (MultiBlocProvider + MaterialApp.router)
-│   ├── di/injection.dart        # get_it registrations
+│   ├── app.dart                 # ETrackApp (providers, auth/sync listeners, MaterialApp.router)
 │   ├── navigation/              # bottom navigation shell
 │   │   └── scaffold_with_nav_bar.dart
 │   └── router/app_router.dart   # go_router route table + stateful shell
 ├── core/
+│   ├── auth/user_id_provider.dart  # active account id for per-user Hive keys
 │   ├── constants/               # AppConstants, AppRoutes
+│   ├── di/injection.dart        # get_it registrations
 │   ├── error/failures.dart      # typed failures
 │   ├── network/
-│   │   ├── api_client.dart      # JSON GET wrapper over http
+│   │   ├── api_client.dart      # JSON GET/PUT/POST/PATCH/DELETE wrapper over http
 │   │   └── token_provider.dart  # bearer token access abstraction
 │   ├── storage/
 │   │   ├── hive_service.dart    # box lifecycle + accessors
 │   │   └── secure_storage_service.dart
+│   ├── sync/
+│   │   ├── sync_outbox.dart        # outbox interface + PendingSyncOperation
+│   │   ├── hive_sync_outbox.dart   # Hive-backed outbox
+│   │   ├── sync_cursor_store.dart  # per-user, per-entity updatedAfter cursors
+│   │   ├── sync_coordinator.dart   # SyncService: drain outbox, then pull remote
+│   │   └── sync_feedback.dart      # user-facing sync result messages
 │   └── theme/app_theme.dart     # light + dark themes
 └── features/
     ├── auth/
@@ -49,13 +56,13 @@ lib/
     │   ├── domain/              # AppUser, AuthRepository
     │   └── presentation/        # AuthBloc, pages
     ├── expenses/
-    │   ├── data/                # local data source + repository impl
+    │   ├── data/                # local + remote data sources, repository impl
     │   ├── domain/              # Expense entity + ExpenseRepository
-    │   └── presentation/        # list page + add sheet
+    │   └── presentation/        # list page + add/edit sheet
     ├── tasks/
-    │   ├── data/                # local data source + repository impl
+    │   ├── data/                # local + remote data sources, repository impl
     │   ├── domain/              # TaskItem entity + TaskRepository
-    │   └── presentation/        # list page + add sheet
+    │   └── presentation/        # list page + add/edit sheet
     ├── home/
     │   ├── data/                # budget local data source + repository impl
     │   ├── domain/              # DashboardSummary, BudgetRepository
@@ -105,25 +112,45 @@ not listen to `AuthBloc` for navigation.
 | Access/refresh tokens | `flutter_secure_storage` | `SecureStorageService` |
 | Expenses | Hive box `etrack_expenses` | `ExpenseLocalDataSource` |
 | Tasks | Hive box `etrack_tasks` | `TaskLocalDataSource` |
-| Offline sync outbox | Hive box `etrack_pending_sync` | `HiveService.pendingSyncBox` |
+| Offline sync outbox | Hive box `etrack_pending_sync` | `HiveSyncOutbox` |
+| Sync cursors | Hive box `etrack_settings` (`last_sync_<user>_<scope>`) | `HiveSyncCursorStore` |
 | Total budget | Hive box `etrack_settings` (`total_budget`) | `BudgetLocalDataSource` / `BudgetRepository` |
 | Other settings | Hive box `etrack_settings` | `HiveService.settingsBox` |
 
 Passwords are never stored locally. Hive initialization happens once in
 `main()` through `HiveService.init()` before `getIt` registrations that depend
-on boxes.
+on boxes. Expense/task record keys are prefixed with `<userId>::` so accounts
+on the same device never see each other's data; the outbox and cursors are
+scoped to the active `UserIdProvider` value, which `ETrackApp` updates from
+`AuthBloc`.
 
-## Offline-first plan
+## Offline-first sync (implemented)
 
-1. Every expense/task create or update writes to Hive first and marks the
-   record `isSynced = false`, then appends an operation to the pending sync box.
-2. A sync service (next phase) drains the outbox in order when online, attaching
-   the bearer token from secure storage.
-3. Server responses replace local records and set `isSynced = true`.
-4. Conflicts use server timestamps with a deterministic rule: last-write-wins
-   for edits, unique client-generated `uuid` IDs for creates (idempotent retry).
-5. Failures keep the operation in the outbox with retry/backoff; the UI reads
-   only local state, so it never blocks on the network.
+1. Every expense/task create, edit or delete writes to Hive first and marks the
+   record `isSynced = false`, then enqueues an operation in the outbox
+   (`etrack_pending_sync`). The UI reads only local state and never blocks on
+   the network.
+2. `SyncCoordinator` (`SyncService`) drains the outbox in order, attaching the
+   bearer token from `TokenProvider`. Upserts `PUT /api/(expenses|tasks)/:id`
+   with the client-generated UUID; deletes call `DELETE /:id`.
+3. After a successful upload, the service marks the local record `isSynced =
+   true` with the server `updatedAt` and removes the outbox operation. A failure
+   (offline/`Failure`) leaves the operation queued for the next run.
+4. It then pulls remote changes with `GET /api/(expenses|tasks)?updatedAfter=
+   <cursor>&limit=200`, using per-entity cursors from `SyncCursorStore`. Server
+   records are applied without re-queueing; tombstones (`deletedAt`) remove the
+   local copy.
+5. Conflicts: local edits with a pending outbox operation or `isSynced == false`
+   always win over incoming server records. Only synced local records can be
+   removed by a server tombstone. Undo re-inserts a deleted record and re-queues
+   an upsert, which resurrects it server-side (upserts clear `deletedAt`).
+6. Sync runs on sign-in, on app resume (`WidgetsBindingObserver`), on
+   pull-to-refresh and from the sync icon in the list app bars. A `_running`
+   guard prevents overlapping runs.
+
+Remote data sources (`ExpenseRemoteDataSource`, `TaskRemoteDataSource`) map the
+API wire format (`description` for task notes) to domain entities and are the
+only feature code that touches `ApiClient`.
 
 ## Authentication flow
 
@@ -155,13 +182,14 @@ authenticated user, merged newest-first. On the client:
 - `SearchRepository` is the only API the presentation layer should call.
 
 `SearchBloc` turns a submitted query into loading/ready/failure states, and
-`SearchPage` renders the results with expense/task icons. Search results remain
-read-only from MongoDB for now; local caching comes with sync.
+`SearchPage` renders the results with expense/task icons. Search reads the API
+directly (it excludes soft-deleted server records); local caching of search hits
+is not implemented yet.
 
 ## Dashboard
 
-The `/home` dashboard is built from local data because expense/task CRUD
-endpoints still return `501` on the API:
+The `/home` dashboard is built from local Hive data (which the sync layer keeps
+up to date), so it renders instantly online or offline:
 
 - `DashboardBloc` depends only on domain repositories: `ExpenseRepository`,
   `TaskRepository` and `BudgetRepository`.
@@ -177,8 +205,8 @@ endpoints still return `501` on the API:
 - The top bar intentionally has no refresh or sign-out buttons; sign-out lives
   on Profile behind a confirmation dialog.
 
-When the sync API lands, only the repository implementations need to change;
-the bloc and widgets stay the same.
+The bloc depends only on domain repositories, so it and the widgets stayed the
+same when CRUD and sync landed — only the repository implementations changed.
 
 ## Profile
 
@@ -191,16 +219,22 @@ then moves to login.
 ## Expenses and tasks
 
 Both list pages read their records from the injected domain repository and
-subscribe to `changes`. Their floating action buttons open modal add sheets:
+subscribe to `changes`. Their floating action buttons open modal sheets; a
+pencil icon opens the same sheet pre-filled for editing:
 
 - Expense sheet: title, amount, category and date; saves an `Expense` with a
-  generated UUID through `ExpenseRepository`.
+  generated UUID through `ExpenseRepository`. In edit mode it reuses the record
+  id and sync state.
 - Task sheet: title, category, optional note and optional due date; saves a
-  `TaskItem` through `TaskRepository`.
+  `TaskItem` through `TaskRepository`, again reusing the id when editing.
 - The Home dashboard's add buttons open the same sheets directly; its "See all"
   links navigate to the full list pages.
+- Swiping a row left deletes it locally and shows a SnackBar with an **Undo**
+  action; Undo re-inserts the record and re-queues an upsert.
+- Each app bar has a sync icon and pull-to-refresh runs a sync; results are
+  shown in a SnackBar via `syncMessage()`.
 - Saving emits a repository change, so the current list and the dashboard both
-  update immediately. Records are still local-only until sync is implemented.
+  update immediately, even while offline.
 
 ## Theming
 

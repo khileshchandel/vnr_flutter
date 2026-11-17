@@ -1,23 +1,35 @@
 import 'package:hive/hive.dart';
 
+import '../../../../core/auth/user_id_provider.dart';
 import '../../domain/entities/task_item.dart';
 
-/// Hive-backed local store for tasks. Writes happen here first; a future sync
-/// service will drain the shared outbox when the API is available.
+/// Hive-backed local store. Reads are scoped to the signed-in account.
 abstract interface class TaskLocalDataSource {
   List<TaskItem> getTasks();
 
-  Future<void> cacheTask(TaskItem task);
+  TaskItem? find(String id);
+
+  Future<void> put(TaskItem task);
+
+  Future<void> remove(String id);
 }
 
 class TaskLocalDataSourceImpl implements TaskLocalDataSource {
-  const TaskLocalDataSourceImpl(this._box);
+  TaskLocalDataSourceImpl(this._box, this._userId);
 
   final Box<Map<String, dynamic>> _box;
+  final UserIdProvider _userId;
+
+  String get _prefix => '${_userId.userId ?? 'local'}::';
+  String _key(String id) => '$_prefix$id';
 
   @override
   List<TaskItem> getTasks() {
-    final tasks = _box.values.map(TaskItem.fromJson).toList();
+    final tasks = _box.keys
+        .whereType<String>()
+        .where((key) => key.startsWith(_prefix))
+        .map((key) => TaskItem.fromJson(_box.get(key)!))
+        .toList();
 
     tasks.sort((a, b) {
       if (a.isCompleted != b.isCompleted) {
@@ -35,5 +47,14 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
   }
 
   @override
-  Future<void> cacheTask(TaskItem task) => _box.put(task.id, task.toJson());
+  TaskItem? find(String id) {
+    final raw = _box.get(_key(id));
+    return raw == null ? null : TaskItem.fromJson(raw);
+  }
+
+  @override
+  Future<void> put(TaskItem task) => _box.put(_key(task.id), task.toJson());
+
+  @override
+  Future<void> remove(String id) => _box.delete(_key(id));
 }
