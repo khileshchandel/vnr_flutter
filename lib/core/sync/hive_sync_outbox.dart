@@ -4,12 +4,13 @@ import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
 import '../auth/user_id_provider.dart';
+import '../storage/hive_service.dart';
 import 'sync_outbox.dart';
 
 final class HiveSyncOutbox implements SyncOutbox {
   HiveSyncOutbox(this._box, this._userId);
 
-  final Box<Map<String, dynamic>> _box;
+  final Box _box;
   final UserIdProvider _userId;
   final StreamController<void> _changes = StreamController<void>.broadcast();
 
@@ -22,8 +23,12 @@ final class HiveSyncOutbox implements SyncOutbox {
   List<PendingSyncOperation> readAll() {
     final operations =
         _box.values
-            .where((json) => json['ownerId'] == _owner)
-            .map(PendingSyncOperation.fromJson)
+            .whereType<Map>()
+            .map(
+              (json) =>
+                  PendingSyncOperation.fromJson(HiveService.stringMap(json)),
+            )
+            .where((operation) => operation.ownerId == _owner)
             .toList()
           ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return operations;

@@ -7,24 +7,28 @@ import '../constants/app_constants.dart';
 abstract final class HiveService {
   static Future<void> init() async {
     await Hive.initFlutter();
-    await Hive.openBox<Map<String, dynamic>>(AppConstants.expensesBox);
-    await Hive.openBox<Map<String, dynamic>>(AppConstants.tasksBox);
-    await Hive.openBox<Map<String, dynamic>>(AppConstants.pendingSyncBox);
+    // Hive deserializes every stored map as `Map<dynamic, dynamic>`. Opening a
+    // box as `Box<Map<String, dynamic>>` makes BoxImpl.get cast on read and
+    // throw, so map boxes are opened untyped and converted via [stringMap].
+    await Hive.openBox(AppConstants.expensesBox);
+    await Hive.openBox(AppConstants.tasksBox);
+    await Hive.openBox(AppConstants.pendingSyncBox);
     await Hive.openBox<String>(AppConstants.settingsBox);
   }
 
-  static Box<Map<String, dynamic>> get expensesBox =>
-      Hive.box<Map<String, dynamic>>(AppConstants.expensesBox);
+  static Box get expensesBox => Hive.box(AppConstants.expensesBox);
 
-  static Box<Map<String, dynamic>> get tasksBox =>
-      Hive.box<Map<String, dynamic>>(AppConstants.tasksBox);
+  static Box get tasksBox => Hive.box(AppConstants.tasksBox);
 
   /// Outbox for expenses/tasks created while offline; drained by sync service.
-  static Box<Map<String, dynamic>> get pendingSyncBox =>
-      Hive.box<Map<String, dynamic>>(AppConstants.pendingSyncBox);
+  static Box get pendingSyncBox => Hive.box(AppConstants.pendingSyncBox);
 
   static Box<String> get settingsBox =>
       Hive.box<String>(AppConstants.settingsBox);
+
+  /// Converts a value read from an untyped Hive box into a typed JSON map.
+  static Map<String, dynamic> stringMap(dynamic value) =>
+      Map<String, dynamic>.from(value as Map);
 
   static Future<void> close() => Hive.close();
 }
