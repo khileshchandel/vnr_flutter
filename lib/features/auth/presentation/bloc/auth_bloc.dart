@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/error/failures.dart';
+import '../../domain/entities/app_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -8,6 +10,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({required this._authRepository}) : super(const AuthState()) {
     on<AuthCheckRequested>(_onCheckRequested);
     on<AuthSignInRequested>(_onSignInRequested);
+    on<AuthSignUpRequested>(_onSignUpRequested);
     on<AuthSignOutRequested>(_onSignOutRequested);
   }
 
@@ -29,6 +32,31 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onSignInRequested(
     AuthSignInRequested event,
     Emitter<AuthState> emit,
+  ) {
+    return _authenticate(
+      emit,
+      () =>
+          _authRepository.signIn(email: event.email, password: event.password),
+    );
+  }
+
+  Future<void> _onSignUpRequested(
+    AuthSignUpRequested event,
+    Emitter<AuthState> emit,
+  ) {
+    return _authenticate(
+      emit,
+      () => _authRepository.signUp(
+        email: event.email,
+        password: event.password,
+        displayName: event.displayName,
+      ),
+    );
+  }
+
+  Future<void> _authenticate(
+    Emitter<AuthState> emit,
+    Future<AppUser> Function() action,
   ) async {
     emit(
       state.copyWith(
@@ -38,16 +66,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       ),
     );
     try {
-      final user = await _authRepository.signIn(
-        email: event.email,
-        password: event.password,
-      );
+      final user = await action();
       emit(state.copyWith(status: AuthStatus.authenticated, user: user));
+    } on Failure catch (failure) {
+      emit(
+        state.copyWith(
+          status: AuthStatus.unauthenticated,
+          errorMessage: failure.message,
+        ),
+      );
     } catch (_) {
       emit(
         state.copyWith(
           status: AuthStatus.unauthenticated,
-          errorMessage: 'Sign-in is not connected yet. Check back soon.',
+          errorMessage: 'Could not sign in. Please try again.',
         ),
       );
     }

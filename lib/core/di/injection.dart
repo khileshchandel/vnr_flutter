@@ -35,7 +35,7 @@ Future<void> initDependencies() async {
     () => AuthLocalDataSourceImpl(getIt<SecureStorageService>()),
   );
   getIt.registerLazySingleton<AuthRemoteDataSource>(
-    () => const AuthRemoteDataSourceImpl(),
+    () => AuthRemoteDataSourceImpl(getIt<ApiClient>()),
   );
   getIt.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(local: getIt(), remote: getIt()),

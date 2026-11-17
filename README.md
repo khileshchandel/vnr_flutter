@@ -7,9 +7,9 @@ available.
 > **Platform focus:** Android only. Other platform folders are intentionally
 > left untouched for now.
 
-> **Status:** foundation phase. Architecture, theming, routing, DI, storage and
-> auth state scaffolding are in place for expenses and tasks. API calls and the
-> expense/task UIs are intentionally stubbed for the next phase.
+> **Status:** architecture, theming, routing, DI, storage and state scaffolding
+> are in place for expenses and tasks. Sign-in/sign-up, session restore and global
+> search call the real API. Expense/task UIs are still stubbed.
 
 ## Stack
 
@@ -78,8 +78,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 - App boots with Hive boxes opened and dependencies registered.
 - Minimal clean light/dark UI driven by `AppTheme`, following system brightness.
 - `go_router` routes for splash, login, expenses and tasks.
-- `AuthBloc` checks a stored token, handles sign-in/sign-out states and reports
-  errors. The remote data source is a documented stub until the API phase.
+- `AuthBloc` handles sign-in/sign-up and sign-out. `AuthRemoteDataSource` calls
+  `POST /api/auth/login`, `POST /api/auth/register` and `GET /api/auth/me`; the
+  token is kept in `flutter_secure_storage` and API error messages reach the UI.
 - Expense and task entities with Hive-backed local data sources are ready for
   the feature UIs. Tasks support categories: Personal, Work, Travel, Food, Other.
 - Global search client calls `GET /api/search` with the stored bearer token and
@@ -87,13 +88,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 
 ## Next phase
 
-1. Implement `AuthRemoteDataSource` against `POST /api/auth/login` and
-   `GET /api/auth/me` using the bearer token.
-2. Add the HTTP client, token refresh and auth-aware router redirects.
-3. Build the expense list/add flow on top of `ExpenseLocalDataSource`.
-4. Build the task list/add flow on top of `TaskLocalDataSource`.
-5. Wire `SearchRepository` into a search UI with a `SearchBloc`.
-6. Add the outbox sync worker and conflict handling.
+1. Add token refresh and auth-aware router redirects.
+2. Build the expense list/add flow on top of `ExpenseLocalDataSource`.
+3. Build the task list/add flow on top of `TaskLocalDataSource`.
+4. Wire `SearchRepository` into a search UI with a `SearchBloc`.
+5. Add the outbox sync worker and conflict handling.
 
 ## Related documents
 

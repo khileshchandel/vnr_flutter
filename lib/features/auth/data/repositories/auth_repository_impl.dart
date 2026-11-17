@@ -16,9 +16,14 @@ class AuthRepositoryImpl implements AuthRepository {
     final token = await _local.readToken();
     if (token == null || token.isEmpty) return null;
 
-    // TODO: validate the token with GET /api/auth/me and return the profile.
-    // Until then, a stored token alone is not enough to authenticate.
-    return null;
+    try {
+      final response = await _remote.currentUser(token: token);
+      return AppUserModel.fromJson(response);
+    } on Failure {
+      // Stale or revoked token: drop it and show the login page.
+      await _local.clearToken();
+      return null;
+    }
   }
 
   @override
@@ -27,17 +32,35 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
   }) async {
     final response = await _remote.signIn(email: email, password: password);
+    return _storeSession(response);
+  }
+
+  @override
+  Future<AppUser> signUp({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
+    final response = await _remote.signUp(
+      email: email,
+      password: password,
+      displayName: displayName,
+    );
+    return _storeSession(response);
+  }
+
+  @override
+  Future<void> signOut() => _local.clearToken();
+
+  Future<AppUser> _storeSession(Map<String, dynamic> response) async {
     final token = response['token'] as String?;
     final userJson = response['user'];
 
     if (token == null || token.isEmpty || userJson is! Map<String, dynamic>) {
-      throw const AuthFailure('Unexpected sign-in response from server.');
+      throw const AuthFailure('Unexpected response from server.');
     }
 
     await _local.cacheToken(token);
     return AppUserModel.fromJson(userJson);
   }
-
-  @override
-  Future<void> signOut() => _local.clearToken();
 }

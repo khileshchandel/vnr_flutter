@@ -17,22 +17,37 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
+  bool _isRegistering = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    context.read<AuthBloc>().add(
-      AuthSignInRequested(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      ),
-    );
+
+    final bloc = context.read<AuthBloc>();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (_isRegistering) {
+      bloc.add(
+        AuthSignUpRequested(
+          email: email,
+          password: password,
+          displayName: _nameController.text.trim().isEmpty
+              ? null
+              : _nameController.text.trim(),
+        ),
+      );
+    } else {
+      bloc.add(AuthSignInRequested(email: email, password: password));
+    }
   }
 
   @override
@@ -81,9 +96,22 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 32),
+                      if (_isRegistering) ...[
+                        TextFormField(
+                          controller: _nameController,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.name],
+                          decoration: const InputDecoration(
+                            labelText: 'Name (optional)',
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
                         decoration: const InputDecoration(
                           labelText: 'Email',
@@ -126,14 +154,21 @@ class _LoginPageState extends State<LoginPage> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Text('Sign in'),
+                            : Text(
+                                _isRegistering ? 'Create account' : 'Sign in',
+                              ),
                       ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Authentication connects to the E Track API in the next phase.',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: isSubmitting
+                            ? null
+                            : () => setState(
+                                () => _isRegistering = !_isRegistering,
+                              ),
+                        child: Text(
+                          _isRegistering
+                              ? 'Already have an account? Sign in'
+                              : 'New here? Create an account',
                         ),
                       ),
                     ],

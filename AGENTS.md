@@ -15,10 +15,11 @@ Instructions for AI agents and contributors working in this repository.
 
 ## Current phase
 
-Foundation only. Storage, DI, routing, theming and auth state scaffolding exist
-for both expenses and tasks. `AuthRemoteDataSource.signIn` is deliberately a
-stub. The global search client is wired through `SearchRepository`, but its UI
-is not built yet. Do not build the full expense/task UI unless asked.
+Storage, DI, routing, theming and state scaffolding exist for both expenses and
+tasks. Sign-in and sign-up call the real API through `AuthRemoteDataSource`, and
+the global search client is wired through `SearchRepository`, but neither search
+nor expense/task UIs are built yet. Do not build the full expense/task UI unless
+asked.
 
 ## Rules
 

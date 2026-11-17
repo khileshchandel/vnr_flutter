@@ -104,12 +104,16 @@ on boxes.
 
 ## Authentication flow
 
-1. User signs in; `AuthRemoteDataSource` posts credentials to the Deno API.
-2. API returns `{ token, user }`; token is stored with `SecureStorageService`.
-3. `AuthBloc` emits `authenticated` and routing moves to the home page.
-4. On startup, `AuthCheckRequested` reads the token and later validates it with
+1. User signs in or creates an account; `AuthRemoteDataSource` posts credentials
+   to `POST /api/auth/login` or `POST /api/auth/register`.
+2. API returns `{ token, user }`; `AuthRepositoryImpl` stores the token with
+   `SecureStorageService` and maps the user into the domain entity.
+3. `AuthBloc` emits `authenticated` and routing moves to the home page. On a
+   server error it shows the API message (for example, invalid credentials).
+4. On startup, `AuthCheckRequested` reads the token and validates it with
    `GET /api/auth/me`.
-5. `401` responses trigger token cleanup and an `unauthenticated` state.
+5. A failed validation or `401` response clears the stored token and emits
+   `unauthenticated`.
 
 ## Global search
 
