@@ -10,7 +10,8 @@ Instructions for AI agents and contributors working in this repository.
 - Platform focus: **Android only**. From now on, do not change anything under
   `ios/`, `web/`, `macos/`, `windows/` or `linux/` unless explicitly asked.
 - Stack: Flutter 3.47 / Dart 3.13, flutter_bloc 9, get_it 9, go_router 18,
-  flutter_secure_storage 11, hive 2 + hive_flutter 1, intl, uuid, http 1.
+  flutter_secure_storage 11, hive 2 + hive_flutter 1, intl, uuid, http 1,
+  connectivity_plus 7.
 - Backend lives separately at `D:\Sagar\Deno\vnr_deno` (Hono + Deno + Mongoose).
 
 ## Current phase
@@ -24,7 +25,9 @@ add and "See all" actions. Profile shows the signed-in user and signs out after
 confirmation. Expense/task add and edit sheets, swipe-to-delete with an Undo
 snackbar, and list/dashboard refresh via repository `changes` all work. Records
 are written to Hive first, queued in an outbox and synced to the Deno API by
-`SyncCoordinator` (auto on sign-in/resume, manual via sync icon and pull-to-refresh).
+`SyncCoordinator` (auto on sign-in/resume/reconnect, manual via sync icon and
+pull-to-refresh). `AutoSyncManager` watches `ConnectivityService` (connectivity_plus)
+and `SyncStatusStore` drives a live status badge in the dashboard app bar.
 
 ## Rules
 
@@ -62,6 +65,13 @@ are written to Hive first, queued in an outbox and synced to the Deno API by
 15. Sync runs through the injectable `SyncService`/`SyncCoordinator`; conflicts
     favour unsynced local records, and server tombstones only remove synced local
     records. Undo re-queues an upsert rather than a delete.
+16. Network reachability goes through `ConnectivityService` — never call the
+    plugin directly from features/pages. `AutoSyncManager` is the only place that
+    reacts to connectivity changes by starting a sync; offline local writes stay
+    queued. Keep Android-only: the plugin's manifest supplies the permission.
+17. Sync UI state lives in `SyncStatusStore`; the dashboard badge reads it via
+    `ValueListenableBuilder`. Update the store in new sync paths so the badge
+    stays truthful.
 
 ## Commands
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_routes.dart';
+import '../../../../core/sync/sync_status_badge.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../expenses/domain/entities/expense.dart';
 import '../../../expenses/domain/repositories/expense_repository.dart';
@@ -37,7 +38,10 @@ class HomePage extends StatelessWidget {
     final summary = context.watch<DashboardBloc>().state.summary;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: const [SyncStatusBadge()],
+      ),
       body: summary == null
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

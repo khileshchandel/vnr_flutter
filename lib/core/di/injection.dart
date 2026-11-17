@@ -2,13 +2,16 @@ import 'package:get_it/get_it.dart';
 
 import '../auth/user_id_provider.dart';
 import '../network/api_client.dart';
+import '../network/connectivity_service.dart';
 import '../network/token_provider.dart';
 import '../storage/hive_service.dart';
 import '../storage/secure_storage_service.dart';
+import '../sync/auto_sync_manager.dart';
 import '../sync/hive_sync_outbox.dart';
 import '../sync/sync_coordinator.dart';
 import '../sync/sync_cursor_store.dart';
 import '../sync/sync_outbox.dart';
+import '../sync/sync_status.dart';
 import '../../features/auth/data/datasources/auth_local_data_source.dart';
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
@@ -44,6 +47,9 @@ Future<void> initDependencies() async {
   getIt.registerLazySingleton<ApiClient>(() => ApiClient());
   getIt.registerLazySingleton<TokenProvider>(
     () => SecureTokenProvider(getIt<SecureStorageService>()),
+  );
+  getIt.registerLazySingleton<ConnectivityService>(
+    () => ConnectivityPlusService(),
   );
 
   final userIdProvider = MutableUserIdProvider();
@@ -96,7 +102,8 @@ Future<void> initDependencies() async {
   );
 
   // Sync: drains the outbox, then pulls server changes into Hive.
-  getIt.registerLazySingleton<SyncService>(
+  getIt.registerLazySingleton<SyncStatusStore>(() => SyncStatusStore());
+  getIt.registerLazySingleton<SyncCoordinator>(
     () => SyncCoordinator(
       tokenProvider: getIt<TokenProvider>(),
       expenses: getIt<ExpenseRepository>(),
@@ -105,6 +112,17 @@ Future<void> initDependencies() async {
       taskRemote: getIt<TaskRemoteDataSource>(),
       outbox: getIt<SyncOutbox>(),
       cursorStore: getIt<SyncCursorStore>(),
+      status: getIt<SyncStatusStore>(),
+    ),
+  );
+  getIt.registerLazySingleton<SyncService>(() => getIt<SyncCoordinator>());
+
+  // Reconnecting to a network is a first-class sync trigger.
+  getIt.registerLazySingleton<AutoSyncManager>(
+    () => AutoSyncManager(
+      getIt<ConnectivityService>(),
+      getIt<SyncService>(),
+      getIt<SyncStatusStore>(),
     ),
   );
 

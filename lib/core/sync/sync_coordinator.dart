@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../error/failures.dart';
 import '../network/token_provider.dart';
 import '../../features/expenses/data/datasources/expense_remote_data_source.dart';
@@ -6,8 +8,10 @@ import '../../features/tasks/data/datasources/task_remote_data_source.dart';
 import '../../features/tasks/domain/repositories/task_repository.dart';
 import 'sync_cursor_store.dart';
 import 'sync_outbox.dart';
+import 'sync_status.dart';
 
-enum SyncResult { success, noSession, alreadyRunning, offline, unauthorized }
+// Keep existing imports of `SyncResult` from this file working.
+export 'sync_status.dart' show SyncResult;
 
 /// Presentation-facing handle for manual refresh and startup sync.
 abstract interface class SyncService {
@@ -25,7 +29,12 @@ final class SyncCoordinator implements SyncService {
     required this.taskRemote,
     required this.outbox,
     required this.cursorStore,
-  });
+    SyncStatusStore? status,
+  }) : status = status ?? SyncStatusStore() {
+    _outboxSub = outbox.changes.listen((_) {
+      this.status.setPending(outbox.readAll().length);
+    });
+  }
 
   final TokenProvider tokenProvider;
   final ExpenseRepository expenses;
@@ -34,6 +43,11 @@ final class SyncCoordinator implements SyncService {
   final TaskRemoteDataSource taskRemote;
   final SyncOutbox outbox;
   final SyncCursorStore cursorStore;
+
+  /// Written on every run and on outbox changes; the home badge reads it.
+  final SyncStatusStore status;
+
+  StreamSubscription<void>? _outboxSub;
 
   static const _pageSize = 200;
   static const _maxPages = 20;
@@ -44,23 +58,36 @@ final class SyncCoordinator implements SyncService {
   Future<SyncResult> run() async {
     if (_running) return SyncResult.alreadyRunning;
     final token = await tokenProvider.readAccessToken();
-    if (token == null || token.isEmpty) return SyncResult.noSession;
+    if (token == null || token.isEmpty) {
+      status.finish(
+        SyncResult.noSession,
+        pendingCount: outbox.readAll().length,
+      );
+      return SyncResult.noSession;
+    }
 
     _running = true;
+    status.begin();
+    late final SyncResult result;
     try {
       await _drainOutbox(token);
       await _pullRemote(token);
-      return SyncResult.success;
+      result = SyncResult.success;
     } on AuthFailure {
-      return SyncResult.unauthorized;
+      result = SyncResult.unauthorized;
     } on Failure {
-      return SyncResult.offline;
+      result = SyncResult.offline;
     } catch (_) {
-      return SyncResult.offline;
+      result = SyncResult.offline;
     } finally {
       _running = false;
+      status.finish(result, pendingCount: outbox.readAll().length);
     }
+    return result;
   }
+
+  /// Only needed if the coordinator is discarded before app shutdown.
+  void dispose() => _outboxSub?.cancel();
 
   Future<void> _drainOutbox(String token) async {
     for (final operation in outbox.readAll()) {

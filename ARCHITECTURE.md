@@ -39,7 +39,8 @@ lib/
 │   ├── error/failures.dart      # typed failures
 │   ├── network/
 │   │   ├── api_client.dart      # JSON GET/PUT/POST/PATCH/DELETE wrapper over http
-│   │   └── token_provider.dart  # bearer token access abstraction
+│   │   ├── token_provider.dart  # bearer token access abstraction
+│   │   └── connectivity_service.dart  # ConnectivityService over connectivity_plus
 │   ├── storage/
 │   │   ├── hive_service.dart    # box lifecycle + accessors
 │   │   └── secure_storage_service.dart
@@ -48,7 +49,10 @@ lib/
 │   │   ├── hive_sync_outbox.dart   # Hive-backed outbox
 │   │   ├── sync_cursor_store.dart  # per-user, per-entity updatedAfter cursors
 │   │   ├── sync_coordinator.dart   # SyncService: drain outbox, then pull remote
-│   │   └── sync_feedback.dart      # user-facing sync result messages
+│   │   ├── sync_status.dart        # SyncResult, SyncPhase, SyncStatusStore
+│   │   ├── sync_status_badge.dart  # tappable home-header status indicator
+│   │   ├── auto_sync_manager.dart  # runs sync on reconnect, tracks online state
+│   │   └── sync_feedback.dart      # user-facing sync result + badge messages
 │   └── theme/app_theme.dart     # light + dark themes
 └── features/
     ├── auth/
@@ -144,13 +148,33 @@ scoped to the active `UserIdProvider` value, which `ETrackApp` updates from
    always win over incoming server records. Only synced local records can be
    removed by a server tombstone. Undo re-inserts a deleted record and re-queues
    an upsert, which resurrects it server-side (upserts clear `deletedAt`).
-6. Sync runs on sign-in, on app resume (`WidgetsBindingObserver`), on
-   pull-to-refresh and from the sync icon in the list app bars. A `_running`
-   guard prevents overlapping runs.
+6. Sync runs on sign-in, on app resume (`WidgetsBindingObserver`), on reconnect
+   (see below), on pull-to-refresh and from the sync icon in the list app bars. A
+   `_running` guard prevents overlapping runs.
 
 Remote data sources (`ExpenseRemoteDataSource`, `TaskRemoteDataSource`) map the
 API wire format (`description` for task notes) to domain entities and are the
 only feature code that touches `ApiClient`.
+
+## Connectivity and automatic sync
+
+`ConnectivityService` wraps `connectivity_plus` and emits a simple `bool`
+reachability signal (a non-empty result set without `ConnectivityResult.none`).
+`AutoSyncManager`, started/stopped by `ETrackApp`, listens to that stream:
+
+- Losing connectivity sets `SyncStatusStore.online = false` immediately. No API
+  call is attempted; local writes keep queueing in the outbox.
+- A transition back to online (or the first online reading at startup) calls
+  `SyncService.run()`, so pending edits upload without user interaction.
+- `SyncCoordinator` also writes to `SyncStatusStore` on every run (syncing →
+  synced/offline/error) and whenever the outbox changes (pending count).
+
+`SyncStatusBadge` in the dashboard app bar is a `ValueListenableBuilder` over the
+store. It shows a spinner while syncing, a queued-count badge with a cloud-upload
+icon when changes are pending, a cloud-off icon when offline, and a cloud-done
+icon when everything is up to date. Tapping it triggers a manual sync. Android
+gets the `ACCESS_NETWORK_STATE` permission from the plugin's manifest — no manual
+Android edits are needed.
 
 ## Authentication flow
 
@@ -202,8 +226,8 @@ up to date), so it renders instantly online or offline:
 - Recent tasks and expenses are shown in tabs. Each tab has an add action and a
   "See all" link into the full page, and the whole dashboard is wrapped in a
   `RefreshIndicator` that replays `DashboardStarted`.
-- The top bar intentionally has no refresh or sign-out buttons; sign-out lives
-  on Profile behind a confirmation dialog.
+- The top bar hosts `SyncStatusBadge` (connectivity + sync state, tap to sync);
+  sign-out lives on Profile behind a confirmation dialog.
 
 The bloc depends only on domain repositories, so it and the widgets stayed the
 same when CRUD and sync landed — only the repository implementations changed.

@@ -6,7 +6,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/auth/user_id_provider.dart';
 import '../core/constants/app_constants.dart';
 import '../core/di/injection.dart';
+import '../core/sync/auto_sync_manager.dart';
 import '../core/sync/sync_coordinator.dart';
+import '../core/sync/sync_status.dart';
 import '../core/theme/app_theme.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/bloc/auth_event.dart';
@@ -34,10 +36,12 @@ class _ETrackAppState extends State<ETrackApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(getIt<AutoSyncManager>().start());
   }
 
   @override
   void dispose() {
+    unawaited(getIt<AutoSyncManager>().stop());
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -66,6 +70,9 @@ class _ETrackAppState extends State<ETrackApp> with WidgetsBindingObserver {
           create: (_) => getIt<TaskRepository>(),
         ),
         RepositoryProvider<SyncService>(create: (_) => getIt<SyncService>()),
+        RepositoryProvider<SyncStatusStore>(
+          create: (_) => getIt<SyncStatusStore>(),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [

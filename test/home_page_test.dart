@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:e_track/core/sync/sync_coordinator.dart';
+import 'package:e_track/core/sync/sync_status.dart';
 import 'package:e_track/features/expenses/domain/entities/expense.dart';
 import 'package:e_track/features/expenses/domain/repositories/expense_repository.dart';
 import 'package:e_track/features/home/domain/repositories/budget_repository.dart';
@@ -10,6 +12,11 @@ import 'package:e_track/features/home/presentation/bloc/dashboard_event.dart';
 import 'package:e_track/features/home/presentation/pages/home_page.dart';
 import 'package:e_track/features/tasks/domain/entities/task_item.dart';
 import 'package:e_track/features/tasks/domain/repositories/task_repository.dart';
+
+class _FakeSyncService implements SyncService {
+  @override
+  Future<SyncResult> run() async => SyncResult.success;
+}
 
 void main() {
   testWidgets('dashboard shows summary, breakdown and recent tabs', (
@@ -31,9 +38,15 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: BlocProvider<DashboardBloc>(
-          create: (_) => bloc..add(const DashboardStarted()),
-          child: const HomePage(),
+        home: MultiRepositoryProvider(
+          providers: [
+            RepositoryProvider<SyncService>.value(value: _FakeSyncService()),
+            RepositoryProvider<SyncStatusStore>.value(value: SyncStatusStore()),
+          ],
+          child: BlocProvider<DashboardBloc>(
+            create: (_) => bloc..add(const DashboardStarted()),
+            child: const HomePage(),
+          ),
         ),
       ),
     );

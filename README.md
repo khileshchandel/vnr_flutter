@@ -12,7 +12,7 @@ available.
 > dashboard, bottom navigation, profile page and expense/task add flows are
 > implemented. Records are stored locally first in Hive, queued in an outbox and
 > synced to the Deno API when online. Edit sheets, swipe-to-delete with an Undo
-> snackbar and manual/auto sync are all built.
+> snackbar, connectivity-driven auto sync and a live sync-status badge are built.
 
 ## Stack
 
@@ -28,6 +28,7 @@ available.
 | Dates/formatting | `intl` |
 | IDs | `uuid` |
 | HTTP client | `http` 1 |
+| Network monitoring | `connectivity_plus` 7 |
 
 ## Getting started
 
@@ -66,9 +67,10 @@ lib/
     auth/user_id_provider.dart    # active account id for per-user Hive keys
     constants/                    # app name, API base URL, storage keys, routes
     error/failures.dart           # domain failures
-    network/                      # ApiClient (GET/PUT/POST/PATCH/DELETE), TokenProvider
+    network/                      # ApiClient, TokenProvider, ConnectivityService
     storage/                      # HiveService, SecureStorageService
-    sync/                         # outbox, cursors, SyncCoordinator (offline-first)
+    sync/                         # outbox, cursors, SyncCoordinator, AutoSyncManager,
+                                  # SyncStatusStore + home-header badge
     theme/app_theme.dart          # minimal light + dark Material 3 themes
   features/
     auth/                         # login flow (data / domain / presentation)
@@ -99,8 +101,13 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 - Offline-first sync: every local write is queued in `etrack_pending_sync`.
   `SyncCoordinator` drains the outbox to the API, then pulls changes using
   per-entity `updatedAfter` cursors. It runs on sign-in, on app resume, on
-  pull-to-refresh and from the sync button in each list app bar. Local edits win
-  until acknowledged; server tombstones remove only synced local records.
+  reconnect, on pull-to-refresh and from the sync button in each list app bar.
+  Local edits win until acknowledged; server tombstones remove only synced local
+  records.
+- `connectivity_plus` drives `AutoSyncManager`: losing the network flips the
+  badge to Offline without any failed request, and coming back online starts a
+  sync automatically. The dashboard header badge shows syncing/pending/offline/
+  up-to-date state and the number of queued changes; tapping it syncs on demand.
 - Dashboard home screen with an editable total budget (default ₹50,000, saved in
   Hive), total spend, remaining balance, a progress bar and a category donut
   drawn with `CustomPainter`. Recent tasks and expenses appear in tabs with add
@@ -114,9 +121,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 ## Next phase
 
 1. Add token refresh and automatic retry for expired tokens.
-2. Add a background sync worker (currently sync runs on resume and manual refresh).
+2. Add an OS-level background sync trigger for large queues while the app is closed.
 3. Batch outbox operations into a single API call for large offline queues.
-4. Surface sync status (pending/conflict indicators) in the list items.
+4. Surface per-record sync status (pending/conflict indicators) in list items.
 
 ## Related documents
 
