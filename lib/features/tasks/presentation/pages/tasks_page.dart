@@ -49,6 +49,10 @@ class _TasksPageState extends State<TasksPage> {
       ..showSnackBar(SnackBar(content: Text(syncMessage(result))));
   }
 
+  Future<void> _toggleCompleted(TaskItem task) async {
+    await _repository.cacheTask(task.copyWith(isCompleted: !task.isCompleted));
+  }
+
   Future<void> _delete(TaskItem task) async {
     await _repository.deleteTask(task.id);
     if (!mounted) return;
@@ -138,6 +142,7 @@ class _TasksPageState extends State<TasksPage> {
                     onDismissed: (_) => _delete(task),
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,
+                      onTap: () => unawaited(_toggleCompleted(task)),
                       leading: Icon(
                         task.isCompleted
                             ? Icons.check_circle

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// Thin rounded progress bar drawn directly on the canvas. No chart package
-/// needed for a single value.
+import '../../../../core/theme/app_theme.dart';
+
+/// Thin rounded progress bar drawn directly on the canvas. Animates smoothly
+/// whenever [fraction] changes (and fills in from zero on first show).
 class BudgetProgressBar extends StatelessWidget {
   const BudgetProgressBar({
     super.key,
@@ -14,20 +16,36 @@ class BudgetProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 12,
-      child: CustomPaint(
-        painter: _ProgressBarPainter(fraction: fraction, color: color),
+    final track = Theme.of(context).colorScheme.surfaceContainerHighest;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: fraction.clamp(0.0, 1.0)),
+      duration: const Duration(milliseconds: 900),
+      curve: AppTheme.emphasized,
+      builder: (context, value, _) => SizedBox(
+        height: 10,
+        child: CustomPaint(
+          painter: _ProgressBarPainter(
+            fraction: value,
+            color: color,
+            trackColor: track,
+          ),
+        ),
       ),
     );
   }
 }
 
 class _ProgressBarPainter extends CustomPainter {
-  const _ProgressBarPainter({required this.fraction, required this.color});
+  const _ProgressBarPainter({
+    required this.fraction,
+    required this.color,
+    required this.trackColor,
+  });
 
   final double fraction;
   final Color color;
+  final Color trackColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -40,7 +58,7 @@ class _ProgressBarPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = size.height
       ..strokeCap = StrokeCap.round
-      ..color = color.withValues(alpha: 0.16);
+      ..color = trackColor;
     canvas.drawLine(start, end, track);
 
     final filledEnd =
@@ -56,6 +74,8 @@ class _ProgressBarPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ProgressBarPainter oldDelegate) =>
-      oldDelegate.fraction != fraction || oldDelegate.color != color;
+  bool shouldRepaint(_ProgressBarPainter old) =>
+      old.fraction != fraction ||
+      old.color != color ||
+      old.trackColor != trackColor;
 }

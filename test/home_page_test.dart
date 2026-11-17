@@ -52,27 +52,29 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Financial summary'), findsOneWidget);
-    expect(find.text('Total budget'), findsOneWidget);
-    expect(find.text('Total spend'), findsOneWidget);
-    expect(find.text('Remaining'), findsOneWidget);
+    expect(find.text('Remaining budget'), findsOneWidget);
+    expect(find.text('Budget'), findsOneWidget);
+    expect(find.text('Spent'), findsOneWidget);
+    // Remaining budget animates to ₹49,750; the Budget stat shows ₹50,000.
+    expect(find.text('₹49,750'), findsOneWidget);
     expect(find.text('₹50,000'), findsOneWidget);
-    expect(find.text('Spend overview'), findsOneWidget);
+    expect(find.text('Spend by category'), findsOneWidget);
     expect(find.byType(RefreshIndicator), findsOneWidget);
     expect(find.byTooltip('Refresh'), findsNothing);
     expect(find.byTooltip('Sign out'), findsNothing);
 
+    expect(find.text('Recent activity'), findsOneWidget);
     expect(find.text('Tasks (1)'), findsOneWidget);
     expect(find.text('Pay bills'), findsOneWidget);
-    expect(find.text('Recent tasks'), findsOneWidget);
     expect(find.byTooltip('Add task'), findsOneWidget);
     expect(find.text('See all'), findsOneWidget);
     expect(find.text('Expenses (1)'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Expenses (1)'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Expenses (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Coffee'), findsOneWidget);
-    expect(find.text('Recent expenses'), findsOneWidget);
     expect(find.byTooltip('Add expense'), findsOneWidget);
     expect(find.text('See all'), findsOneWidget);
   });

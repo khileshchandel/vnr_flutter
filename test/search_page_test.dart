@@ -46,7 +46,8 @@ void main() {
     expect(find.text('Find anything, fast'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'coffee');
-    await tester.tap(find.byTooltip('Search'));
+    // Search is now debounced on input rather than tapped.
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
 
     expect(find.text('Coffee'), findsOneWidget);
