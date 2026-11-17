@@ -6,6 +6,7 @@ import '../core/di/injection.dart';
 import '../core/theme/app_theme.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/bloc/auth_event.dart';
+import '../features/auth/presentation/bloc/auth_state.dart';
 import 'router/app_router.dart';
 
 /// Root widget for E Track.
@@ -23,13 +24,16 @@ class ETrackApp extends StatelessWidget {
           create: (_) => getIt<AuthBloc>()..add(const AuthCheckRequested()),
         ),
       ],
-      child: MaterialApp.router(
-        title: AppConstants.appName,
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.system,
-        routerConfig: appRouter,
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (_, state) => authStatusNotifier.value = state.status,
+        child: MaterialApp.router(
+          title: AppConstants.appName,
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.system,
+          routerConfig: appRouter,
+        ),
       ),
     );
   }

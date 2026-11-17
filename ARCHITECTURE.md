@@ -114,6 +114,10 @@ on boxes.
    `GET /api/auth/me`.
 5. A failed validation or `401` response clears the stored token and emits
    `unauthenticated`.
+6. `ETrackApp` mirrors the auth status into a `ValueNotifier` used as GoRouter's
+   `refreshListenable`. `authRedirect()` in `lib/app/router/` decides whether to
+   send the user home, to login, or leave the current route alone. Pages do not
+   listen to `AuthBloc` for navigation.
 
 ## Global search
 

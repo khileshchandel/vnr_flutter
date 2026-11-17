@@ -36,8 +36,9 @@ asked.
    Hive, shared preferences, logs or error messages.
 7. Open Hive boxes only in `HiveService.init()` and access them via
    `HiveService` accessors or an injected data source.
-8. Keep widgets dumb: side effects (navigation, snackbars) belong in
-   `BlocListener`, not in business logic classes.
+8. Keep widgets dumb: snackbars belong in `BlocListener`. Auth navigation is
+   owned by `authRedirect()` in `lib/app/router/`; pages must not navigate on
+   `AuthBloc` state changes.
 9. New typed Hive models require an adapter registered in `HiveService` and
    generated with `dart run build_runner build --delete-conflicting-outputs`.
 10. Update `README.md` and `ARCHITECTURE.md` when structure or behavior changes.

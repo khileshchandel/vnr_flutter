@@ -1,16 +1,26 @@
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_routes.dart';
+import '../../features/auth/presentation/bloc/auth_state.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/expenses/presentation/pages/expenses_page.dart';
 import '../../features/tasks/presentation/pages/tasks_page.dart';
+import 'auth_redirect.dart';
+
+/// go_router refreshes whenever this changes, so auth state drives navigation
+/// without any page having to listen for it.
+final ValueNotifier<AuthStatus> authStatusNotifier = ValueNotifier(
+  AuthStatus.unknown,
+);
 
 /// Single source of truth for navigation.
-///
-/// Auth-aware redirects will be added here once the API login flow is wired.
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.splash,
+  refreshListenable: authStatusNotifier,
+  redirect: (_, state) =>
+      authRedirect(authStatusNotifier.value, state.matchedLocation),
   routes: [
     GoRoute(
       path: AppRoutes.splash,

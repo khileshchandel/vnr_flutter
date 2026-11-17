@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_event.dart';
 
 /// Placeholder home screen. The expense list, filters and totals land in the
 /// features phase; this exists so routing and theming are verifiable now.
@@ -18,9 +21,8 @@ class ExpensesPage extends StatelessWidget {
           IconButton(
             tooltip: 'Sign out',
             icon: const Icon(Icons.logout_outlined),
-            onPressed: () {
-              // Auth sign-out will be wired to the app bar in the auth phase.
-            },
+            onPressed: () =>
+                context.read<AuthBloc>().add(const AuthSignOutRequested()),
           ),
         ],
       ),

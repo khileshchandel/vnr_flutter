@@ -77,7 +77,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 
 - App boots with Hive boxes opened and dependencies registered.
 - Minimal clean light/dark UI driven by `AppTheme`, following system brightness.
-- `go_router` routes for splash, login, expenses and tasks.
+- `go_router` routes for splash, login, home, expenses and tasks, with auth-aware
+  redirects so a successful sign-in lands on the home page.
 - `AuthBloc` handles sign-in/sign-up and sign-out. `AuthRemoteDataSource` calls
   `POST /api/auth/login`, `POST /api/auth/register` and `GET /api/auth/me`; the
   token is kept in `flutter_secure_storage` and API error messages reach the UI.
@@ -88,7 +89,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 
 ## Next phase
 
-1. Add token refresh and auth-aware router redirects.
+1. Add token refresh and automatic retry for expired tokens.
 2. Build the expense list/add flow on top of `ExpenseLocalDataSource`.
 3. Build the task list/add flow on top of `TaskLocalDataSource`.
 4. Wire `SearchRepository` into a search UI with a `SearchBloc`.
