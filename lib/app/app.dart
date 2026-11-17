@@ -9,6 +9,7 @@ import '../features/auth/presentation/bloc/auth_event.dart';
 import '../features/auth/presentation/bloc/auth_state.dart';
 import '../features/home/presentation/bloc/dashboard_bloc.dart';
 import '../features/home/presentation/bloc/dashboard_event.dart';
+import '../features/search/presentation/bloc/search_bloc.dart';
 import 'router/app_router.dart';
 
 /// Root widget for E Track.
@@ -28,6 +29,7 @@ class ETrackApp extends StatelessWidget {
         BlocProvider<DashboardBloc>(
           create: (_) => getIt<DashboardBloc>()..add(const DashboardStarted()),
         ),
+        BlocProvider<SearchBloc>(create: (_) => getIt<SearchBloc>()),
       ],
       child: BlocListener<AuthBloc, AuthState>(
         listener: (_, state) => authStatusNotifier.value = state.status,

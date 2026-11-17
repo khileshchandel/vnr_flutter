@@ -8,9 +8,9 @@ available.
 > left untouched for now.
 
 > **Status:** architecture, theming, routing, DI, storage and state scaffolding
-> are in place. Sign-in/sign-up, session restore, the global search client and
-> the dashboard home screen are implemented. Expense/task list/add UIs are still
-> stubbed.
+> are in place. Sign-in/sign-up, session restore, the API-backed search page, the
+> dashboard home screen, bottom navigation and profile page are implemented.
+> Expense/task list/add UIs are still stubbed.
 
 ## Stack
 
@@ -57,7 +57,8 @@ lib/
   main.dart                       # Hive init + DI init + runApp
   app/
     app.dart                      # ETrackApp: BlocProvider, themes, router
-    router/app_router.dart        # go_router route table
+    router/app_router.dart        # go_router route table + stateful shell
+    navigation/                   # bottom navigation shell
     di/injection.dart             # get_it registrations
   core/
     constants/                    # app name, API base URL, storage keys, routes
@@ -70,7 +71,8 @@ lib/
     expenses/                     # entity, local data source, repository, placeholder page
     tasks/                        # entity, local data source, repository, placeholder page
     home/                         # dashboard: budget, summary bloc, charts, tabs
-    search/                       # global search client (API -> domain)
+    profile/                      # profile page with sign-out confirmation
+    search/                       # global search client, bloc and search page
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan.
@@ -79,8 +81,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 
 - App boots with Hive boxes opened and dependencies registered.
 - Minimal clean light/dark UI driven by `AppTheme`, following system brightness.
-- `go_router` routes for splash, login, home, expenses and tasks, with auth-aware
-  redirects so a successful sign-in lands on the home page.
+- `go_router` stateful shell with Home, Search and Profile tabs; expenses and
+  tasks stay nested under Home so the bottom navigation remains visible.
+  Auth-aware redirects send a successful sign-in to the home page.
 - `AuthBloc` handles sign-in/sign-up and sign-out. `AuthRemoteDataSource` calls
   `POST /api/auth/login`, `POST /api/auth/register` and `GET /api/auth/me`; the
   token is kept in `flutter_secure_storage` and API error messages reach the UI.
@@ -88,9 +91,13 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
   the feature UIs. Tasks support categories: Personal, Work, Travel, Food, Other.
 - Dashboard home screen with an editable total budget (default ₹50,000, saved in
   Hive), total spend, remaining balance, a progress bar and a category donut
-  drawn with `CustomPainter`. Recent tasks and expenses appear in tabs.
-- Global search client calls `GET /api/search` with the stored bearer token and
-  parses combined expense/task results.
+  drawn with `CustomPainter`. Recent tasks and expenses appear in tabs with
+  add and "See all" actions; pull down to refresh.
+- Search tab runs `GET /api/search` through `SearchRepository`/`SearchBloc` and
+  lists combined expense/task results.
+- Profile tab shows the signed-in user's name and email with a placeholder
+  avatar, links to expenses and tasks, and a sign-out button with a
+  confirmation dialog.
 
 ## Next phase
 
@@ -99,8 +106,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
    already reads those records, so new expenses appear after refresh.
 3. Build the task list/add flow on top of `TaskRepository`.
 4. Switch the dashboard totals to the sync API once expense CRUD lands.
-5. Wire `SearchRepository` into a search UI with a `SearchBloc`.
-6. Add the outbox sync worker and conflict handling.
+5. Add the outbox sync worker and conflict handling.
 
 ## Related documents
 

@@ -22,6 +22,7 @@ import '../../features/home/presentation/bloc/dashboard_bloc.dart';
 import '../../features/search/data/datasources/search_remote_data_source.dart';
 import '../../features/search/data/repositories/search_repository_impl.dart';
 import '../../features/search/domain/repositories/search_repository.dart';
+import '../../features/search/presentation/bloc/search_bloc.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -90,5 +91,8 @@ Future<void> initDependencies() async {
   );
   getIt.registerLazySingleton<SearchRepository>(
     () => SearchRepositoryImpl(getIt<SearchRemoteDataSource>()),
+  );
+  getIt.registerFactory<SearchBloc>(
+    () => SearchBloc(repository: getIt<SearchRepository>()),
   );
 }

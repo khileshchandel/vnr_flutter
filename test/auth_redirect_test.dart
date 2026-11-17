@@ -14,6 +14,14 @@ void main() {
       authRedirect(AuthStatus.unauthenticated, AppRoutes.home),
       AppRoutes.login,
     );
+    expect(
+      authRedirect(AuthStatus.unauthenticated, AppRoutes.search),
+      AppRoutes.login,
+    );
+    expect(
+      authRedirect(AuthStatus.unauthenticated, AppRoutes.profile),
+      AppRoutes.login,
+    );
     expect(authRedirect(AuthStatus.unauthenticated, AppRoutes.login), isNull);
   });
 
@@ -30,6 +38,8 @@ void main() {
 
   test('authenticated users can stay on other pages', () {
     expect(authRedirect(AuthStatus.authenticated, AppRoutes.home), isNull);
+    expect(authRedirect(AuthStatus.authenticated, AppRoutes.search), isNull);
+    expect(authRedirect(AuthStatus.authenticated, AppRoutes.profile), isNull);
     expect(authRedirect(AuthStatus.authenticated, AppRoutes.tasks), isNull);
   });
 

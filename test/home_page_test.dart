@@ -45,13 +45,23 @@ void main() {
     expect(find.text('Remaining'), findsOneWidget);
     expect(find.text('₹50,000'), findsOneWidget);
     expect(find.text('Spend overview'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+    expect(find.byTooltip('Refresh'), findsNothing);
+    expect(find.byTooltip('Sign out'), findsNothing);
+
     expect(find.text('Tasks (1)'), findsOneWidget);
     expect(find.text('Pay bills'), findsOneWidget);
+    expect(find.text('Recent tasks'), findsOneWidget);
+    expect(find.byTooltip('Add task'), findsOneWidget);
+    expect(find.text('See all'), findsOneWidget);
     expect(find.text('Expenses (1)'), findsOneWidget);
 
     await tester.tap(find.text('Expenses (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Coffee'), findsOneWidget);
+    expect(find.text('Recent expenses'), findsOneWidget);
+    expect(find.byTooltip('Add expense'), findsOneWidget);
+    expect(find.text('See all'), findsOneWidget);
   });
 }
 

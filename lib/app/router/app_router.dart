@@ -7,7 +7,10 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/expenses/presentation/pages/expenses_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/tasks/presentation/pages/tasks_page.dart';
+import '../navigation/scaffold_with_nav_bar.dart';
 import 'auth_redirect.dart';
 
 /// go_router refreshes whenever this changes, so auth state drives navigation
@@ -16,7 +19,8 @@ final ValueNotifier<AuthStatus> authStatusNotifier = ValueNotifier(
   AuthStatus.unknown,
 );
 
-/// Single source of truth for navigation.
+/// Single source of truth for navigation. The indexed shell keeps Home, Search
+/// and Profile alive in their own navigators while auth routes stay outside it.
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.splash,
   refreshListenable: authStatusNotifier,
@@ -33,20 +37,50 @@ final GoRouter appRouter = GoRouter(
       name: 'login',
       builder: (_, _) => const LoginPage(),
     ),
-    GoRoute(
-      path: AppRoutes.home,
-      name: 'home',
-      builder: (_, _) => const HomePage(),
-    ),
-    GoRoute(
-      path: AppRoutes.expenses,
-      name: 'expenses',
-      builder: (_, _) => const ExpensesPage(),
-    ),
-    GoRoute(
-      path: AppRoutes.tasks,
-      name: 'tasks',
-      builder: (_, _) => const TasksPage(),
+    StatefulShellRoute.indexedStack(
+      builder: (_, _, navigationShell) =>
+          ScaffoldWithNavBar(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.home,
+              name: 'home',
+              builder: (_, _) => const HomePage(),
+              routes: [
+                GoRoute(
+                  path: 'expenses',
+                  name: 'expenses',
+                  builder: (_, _) => const ExpensesPage(),
+                ),
+                GoRoute(
+                  path: 'tasks',
+                  name: 'tasks',
+                  builder: (_, _) => const TasksPage(),
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.search,
+              name: 'search',
+              builder: (_, _) => const SearchPage(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.profile,
+              name: 'profile',
+              builder: (_, _) => const ProfilePage(),
+            ),
+          ],
+        ),
+      ],
     ),
   ],
   errorBuilder: (_, state) =>

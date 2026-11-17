@@ -30,7 +30,9 @@ lib/
 ├── app/                         # Application wiring
 │   ├── app.dart                 # ETrackApp (MultiBlocProvider + MaterialApp.router)
 │   ├── di/injection.dart        # get_it registrations
-│   └── router/app_router.dart   # go_router route table
+│   ├── navigation/              # bottom navigation shell
+│   │   └── scaffold_with_nav_bar.dart
+│   └── router/app_router.dart   # go_router route table + stateful shell
 ├── core/
 │   ├── constants/               # AppConstants, AppRoutes
 │   ├── error/failures.dart      # typed failures
@@ -58,10 +60,12 @@ lib/
     │   ├── data/                # budget local data source + repository impl
     │   ├── domain/              # DashboardSummary, BudgetRepository
     │   └── presentation/        # DashboardBloc, HomePage, custom painters
+    ├── profile/
+    │   └── presentation/        # ProfilePage with sign-out confirmation
     └── search/
         ├── data/                # remote data source + repository impl
         ├── domain/              # SearchResult entity + SearchRepository
-        └── presentation/        # search UI/Bloc (next phase)
+        └── presentation/        # SearchBloc + SearchPage
 ```
 
 ## State management (Bloc)
@@ -77,11 +81,18 @@ lib/
 
 `appRouter` in `lib/app/router/app_router.dart` is the single route table. Pages
 use `context.go(AppRoutes.x)` / `context.push(...)` rather than `Navigator.of`.
+The three main tabs are a `StatefulShellRoute.indexedStack` in
+`app_router.dart`. `ScaffoldWithNavBar` renders a `NavigationBar` and calls
+`goBranch(index)` so each tab keeps its own navigator and scroll state. Home,
+Search and Profile are separate branches; `/home/expenses` and `/home/tasks` are
+nested under Home so the bottom navigation stays visible on those pages. Splash
+and login remain outside the shell.
+
 Auth navigation is owned by `authRedirect()`: successful sign-in moves splash
-and login to the home dashboard, sign-out returns to login, and unauthenticated
-users are redirected to login. `ETrackApp` mirrors `AuthBloc` status into a
-`ValueNotifier` used as GoRouter's `refreshListenable`; pages do not listen to
-`AuthBloc` for navigation.
+and login to the home dashboard, sign-out from Profile returns to login, and
+unauthenticated users are redirected to login. `ETrackApp` mirrors `AuthBloc`
+status into a `ValueNotifier` used as GoRouter's `refreshListenable`; pages do
+not listen to `AuthBloc` for navigation.
 
 ## Storage
 
@@ -139,8 +150,9 @@ authenticated user, merged newest-first. On the client:
 - `SearchRemoteDataSourceImpl` calls `/search` and parses the response.
 - `SearchRepository` is the only API the presentation layer should call.
 
-A `SearchBloc` and search page will be added in the features phase. Search
-results remain read-only from MongoDB for now; local caching comes with sync.
+`SearchBloc` turns a submitted query into loading/ready/failure states, and
+`SearchPage` renders the results with expense/task icons. Search results remain
+read-only from MongoDB for now; local caching comes with sync.
 
 ## Dashboard
 
@@ -155,10 +167,22 @@ endpoints still return `501` on the API:
   through `BudgetRepository` (Hive settings box).
 - `BudgetProgressBar` and `CategoryDonutChart` are `CustomPainter` widgets, so no
   chart package is required. Their accent colors come from `AppTheme.chartPalette`.
-- Recent tasks and expenses are shown in tabs on the same page.
+- Recent tasks and expenses are shown in tabs. Each tab has an add action and a
+  "See all" link into the full page, and the whole dashboard is wrapped in a
+  `RefreshIndicator` that replays `DashboardStarted`.
+- The top bar intentionally has no refresh or sign-out buttons; sign-out lives
+  on Profile behind a confirmation dialog.
 
 When the sync API lands, only the repository implementations need to change;
 the bloc and widgets stay the same.
+
+## Profile
+
+`ProfilePage` reads the current `AppUser` from `AuthBloc` and shows the display
+name, email and a placeholder avatar. Expenses and Tasks buttons navigate with
+`context.go(AppRoutes.x)`. The Log out button opens a confirmation dialog and
+only dispatches `AuthSignOutRequested` after the user confirms; `authRedirect()`
+then moves to login.
 
 ## Theming
 
@@ -170,9 +194,10 @@ buttons, app bars) is centralized there — pages should not hard-code colors.
 ## Testing
 
 - Unit tests: blocs and repositories with mocked domain repositories/data sources
-  (`AuthBloc`, dashboard totals and budget persistence).
+  (`AuthBloc`, dashboard totals/budget persistence and `SearchBloc`).
 - Widget tests: pages with mocked/replaced blocs, including the dashboard summary,
-  breakdown and recent-activity tabs.
+  recent-activity actions, search results, profile sign-out and bottom navigation
+  branch switching.
 - Keep tests free of real plugin calls; inject `SecureStorageService` and Hive
   boxes where needed.
 

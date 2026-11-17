@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/constants/app_routes.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../expenses/domain/entities/expense.dart';
 import '../../../tasks/domain/entities/task_item.dart';
 import '../../domain/entities/dashboard_summary.dart';
@@ -24,39 +24,31 @@ final _date = DateFormat.yMMMd();
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
+  Future<void> _refresh(BuildContext context) async {
+    context.read<DashboardBloc>().add(const DashboardStarted());
+  }
+
   @override
   Widget build(BuildContext context) {
     final summary = context.watch<DashboardBloc>().state.summary;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh_outlined),
-            onPressed: () =>
-                context.read<DashboardBloc>().add(const DashboardStarted()),
-          ),
-          IconButton(
-            tooltip: 'Sign out',
-            icon: const Icon(Icons.logout_outlined),
-            onPressed: () =>
-                context.read<AuthBloc>().add(const AuthSignOutRequested()),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Dashboard')),
       body: summary == null
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-              children: [
-                _SummaryCard(summary: summary),
-                const SizedBox(height: 12),
-                _BreakdownCard(summary: summary),
-                const SizedBox(height: 12),
-                const _RecentCard(),
-              ],
+          : RefreshIndicator(
+              onRefresh: () => _refresh(context),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                children: [
+                  _SummaryCard(summary: summary),
+                  const SizedBox(height: 12),
+                  _BreakdownCard(summary: summary),
+                  const SizedBox(height: 12),
+                  const _RecentCard(),
+                ],
+              ),
             ),
     );
   }
@@ -379,16 +371,72 @@ class _RecentTabs extends StatelessWidget {
             ],
           ),
           SizedBox(
-            height: 320,
+            height: 340,
             child: TabBarView(
               children: [
-                _TaskList(tasks: summary.recentTasks),
-                _ExpenseList(expenses: summary.recentExpenses),
+                _RecentSection(
+                  label: 'Recent tasks',
+                  addLabel: 'Add task',
+                  route: AppRoutes.tasks,
+                  child: _TaskList(tasks: summary.recentTasks),
+                ),
+                _RecentSection(
+                  label: 'Recent expenses',
+                  addLabel: 'Add expense',
+                  route: AppRoutes.expenses,
+                  child: _ExpenseList(expenses: summary.recentExpenses),
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RecentSection extends StatelessWidget {
+  const _RecentSection({
+    required this.label,
+    required this.addLabel,
+    required this.route,
+    required this.child,
+  });
+
+  final String label;
+  final String addLabel;
+  final String route;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              tooltip: addLabel,
+              icon: const Icon(Icons.add_outlined),
+              onPressed: () => context.push(route),
+            ),
+            TextButton(
+              onPressed: () => context.push(route),
+              child: const Text('See all'),
+            ),
+          ],
+        ),
+        Expanded(child: child),
+      ],
     );
   }
 }
@@ -410,6 +458,8 @@ class _TaskList extends StatelessWidget {
     final theme = Theme.of(context);
     return ListView.separated(
       shrinkWrap: true,
+      primary: false,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: tasks.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
@@ -456,6 +506,8 @@ class _ExpenseList extends StatelessWidget {
     final theme = Theme.of(context);
     return ListView.separated(
       shrinkWrap: true,
+      primary: false,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: expenses.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {

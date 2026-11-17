@@ -11,15 +11,17 @@ changes; it is the source of truth for stack, structure and conventions.
 - Architecture: clean architecture with `lib/core/` and
   `lib/features/<feature>/{data,domain,presentation}`.
 - State: `flutter_bloc`; DI: `get_it` (`lib/core/di/injection.dart`);
-  routing: `go_router` (`lib/app/router/app_router.dart`);
+  routing: `go_router` (`lib/app/router/app_router.dart`) with a stateful
+  bottom-nav shell (`lib/app/navigation/`);
   theming: `lib/core/theme/app_theme.dart` (light + dark);
   storage: Hive via `lib/core/storage/hive_service.dart`, tokens via
   `lib/core/storage/secure_storage_service.dart`;
   HTTP: `lib/core/network/api_client.dart`, global search via
   `lib/features/search/`.
-- Current scope: auth and the global search client call the real API; the home
-  dashboard renders local expense/task summaries with an editable budget; the
-  search UI and expense/task list/add UIs are still stubbed.
+- Current scope: auth and the API-backed Search tab call the real API; the home
+  dashboard renders local expense/task summaries with an editable budget and
+  pull-to-refresh; bottom tabs are Home, Search and Profile (with confirmed
+  sign-out). Expense/task list/add UIs are still stubbed.
 
 ## Expectations
 
