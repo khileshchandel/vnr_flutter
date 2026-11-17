@@ -7,9 +7,11 @@ import '../core/theme/app_theme.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/bloc/auth_event.dart';
 import '../features/auth/presentation/bloc/auth_state.dart';
+import '../features/expenses/domain/repositories/expense_repository.dart';
 import '../features/home/presentation/bloc/dashboard_bloc.dart';
 import '../features/home/presentation/bloc/dashboard_event.dart';
 import '../features/search/presentation/bloc/search_bloc.dart';
+import '../features/tasks/domain/repositories/task_repository.dart';
 import 'router/app_router.dart';
 
 /// Root widget for E Track.
@@ -21,25 +23,36 @@ class ETrackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiRepositoryProvider(
       providers: [
-        BlocProvider<AuthBloc>(
-          create: (_) => getIt<AuthBloc>()..add(const AuthCheckRequested()),
+        RepositoryProvider<ExpenseRepository>(
+          create: (_) => getIt<ExpenseRepository>(),
         ),
-        BlocProvider<DashboardBloc>(
-          create: (_) => getIt<DashboardBloc>()..add(const DashboardStarted()),
+        RepositoryProvider<TaskRepository>(
+          create: (_) => getIt<TaskRepository>(),
         ),
-        BlocProvider<SearchBloc>(create: (_) => getIt<SearchBloc>()),
       ],
-      child: BlocListener<AuthBloc, AuthState>(
-        listener: (_, state) => authStatusNotifier.value = state.status,
-        child: MaterialApp.router(
-          title: AppConstants.appName,
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: ThemeMode.system,
-          routerConfig: appRouter,
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<AuthBloc>(
+            create: (_) => getIt<AuthBloc>()..add(const AuthCheckRequested()),
+          ),
+          BlocProvider<DashboardBloc>(
+            create: (_) =>
+                getIt<DashboardBloc>()..add(const DashboardStarted()),
+          ),
+          BlocProvider<SearchBloc>(create: (_) => getIt<SearchBloc>()),
+        ],
+        child: BlocListener<AuthBloc, AuthState>(
+          listener: (_, state) => authStatusNotifier.value = state.status,
+          child: MaterialApp.router(
+            title: AppConstants.appName,
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: ThemeMode.system,
+            routerConfig: appRouter,
+          ),
         ),
       ),
     );

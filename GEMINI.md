@@ -21,7 +21,8 @@ changes; it is the source of truth for stack, structure and conventions.
 - Current scope: auth and the API-backed Search tab call the real API; the home
   dashboard renders local expense/task summaries with an editable budget and
   pull-to-refresh; bottom tabs are Home, Search and Profile (with confirmed
-  sign-out). Expense/task list/add UIs are still stubbed.
+  sign-out). Local expense/task add sheets and lists work; edit/delete and sync
+  are not built yet.
 
 ## Expectations
 

@@ -9,8 +9,8 @@ available.
 
 > **Status:** architecture, theming, routing, DI, storage and state scaffolding
 > are in place. Sign-in/sign-up, session restore, the API-backed search page, the
-> dashboard home screen, bottom navigation and profile page are implemented.
-> Expense/task list/add UIs are still stubbed.
+> dashboard, bottom navigation, profile page and local expense/task add flows are
+> implemented. Edit/delete and backend sync for those records are not built yet.
 
 ## Stack
 
@@ -68,8 +68,8 @@ lib/
     theme/app_theme.dart          # minimal light + dark Material 3 themes
   features/
     auth/                         # login flow (data / domain / presentation)
-    expenses/                     # entity, local data source, repository, placeholder page
-    tasks/                        # entity, local data source, repository, placeholder page
+    expenses/                     # entity, local data source, repository, list + add sheet
+    tasks/                        # entity, local data source, repository, list + add sheet
     home/                         # dashboard: budget, summary bloc, charts, tabs
     profile/                      # profile page with sign-out confirmation
     search/                       # global search client, bloc and search page
@@ -87,12 +87,14 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 - `AuthBloc` handles sign-in/sign-up and sign-out. `AuthRemoteDataSource` calls
   `POST /api/auth/login`, `POST /api/auth/register` and `GET /api/auth/me`; the
   token is kept in `flutter_secure_storage` and API error messages reach the UI.
-- Expense and task entities with Hive-backed local data sources are ready for
-  the feature UIs. Tasks support categories: Personal, Work, Travel, Food, Other.
+- Expense and task entities with Hive-backed local data sources. The add sheets
+  save real records locally; both list pages show what was added and refresh the
+  dashboard automatically. Tasks support categories: Personal, Work, Travel,
+  Food, Other.
 - Dashboard home screen with an editable total budget (default ₹50,000, saved in
   Hive), total spend, remaining balance, a progress bar and a category donut
-  drawn with `CustomPainter`. Recent tasks and expenses appear in tabs with
-  add and "See all" actions; pull down to refresh.
+  drawn with `CustomPainter`. Recent tasks and expenses appear in tabs with add
+  and "See all" actions; add opens a working sheet and pull down to refresh.
 - Search tab runs `GET /api/search` through `SearchRepository`/`SearchBloc` and
   lists combined expense/task results.
 - Profile tab shows the signed-in user's name and email with a placeholder
@@ -102,11 +104,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
 ## Next phase
 
 1. Add token refresh and automatic retry for expired tokens.
-2. Build the expense list/add flow on top of `ExpenseRepository`; the dashboard
-   already reads those records, so new expenses appear after refresh.
-3. Build the task list/add flow on top of `TaskRepository`.
-4. Switch the dashboard totals to the sync API once expense CRUD lands.
-5. Add the outbox sync worker and conflict handling.
+2. Add edit/delete flows on top of `ExpenseRepository` and `TaskRepository`.
+3. Switch the dashboard totals to the sync API once expense CRUD lands.
+4. Add the outbox sync worker and conflict handling.
 
 ## Related documents
 

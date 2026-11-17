@@ -71,6 +71,9 @@ class _StaticExpenses implements ExpenseRepository {
   final List<Expense> items;
 
   @override
+  Stream<void> get changes => const Stream<void>.empty();
+
+  @override
   List<Expense> getExpenses() => items;
 
   @override
@@ -81,6 +84,9 @@ class _StaticTasks implements TaskRepository {
   const _StaticTasks(this.items);
 
   final List<TaskItem> items;
+
+  @override
+  Stream<void> get changes => const Stream<void>.empty();
 
   @override
   List<TaskItem> getTasks() => items;

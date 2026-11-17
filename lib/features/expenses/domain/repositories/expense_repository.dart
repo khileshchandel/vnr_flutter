@@ -6,4 +6,7 @@ abstract interface class ExpenseRepository {
   List<Expense> getExpenses();
 
   Future<void> cacheExpense(Expense expense);
+
+  /// Emits after a local write so listeners such as the dashboard can refresh.
+  Stream<void> get changes;
 }

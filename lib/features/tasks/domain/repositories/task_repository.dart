@@ -6,4 +6,7 @@ abstract interface class TaskRepository {
   List<TaskItem> getTasks();
 
   Future<void> cacheTask(TaskItem task);
+
+  /// Emits after a local write so listeners such as the dashboard can refresh.
+  Stream<void> get changes;
 }

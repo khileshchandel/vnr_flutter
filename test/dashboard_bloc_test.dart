@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:e_track/features/expenses/domain/entities/expense.dart';
@@ -14,24 +16,38 @@ class _FakeExpenses implements ExpenseRepository {
   _FakeExpenses(this.items);
 
   final List<Expense> items;
+  final StreamController<void> _changes = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get changes => _changes.stream;
 
   @override
   List<Expense> getExpenses() => items;
 
   @override
-  Future<void> cacheExpense(Expense expense) async => items.add(expense);
+  Future<void> cacheExpense(Expense expense) async {
+    items.add(expense);
+    _changes.add(null);
+  }
 }
 
 class _FakeTasks implements TaskRepository {
   _FakeTasks(this.items);
 
   final List<TaskItem> items;
+  final StreamController<void> _changes = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get changes => _changes.stream;
 
   @override
   List<TaskItem> getTasks() => items;
 
   @override
-  Future<void> cacheTask(TaskItem task) async => items.add(task);
+  Future<void> cacheTask(TaskItem task) async {
+    items.add(task);
+    _changes.add(null);
+  }
 }
 
 class _FakeBudget implements BudgetRepository {
@@ -108,6 +124,26 @@ void main() {
     expect(state.status, DashboardStatus.ready);
     expect(state.summary!.remaining, 60000);
     expect(budget.value, 60000);
+
+    bloc.close();
+  });
+
+  test('a new local expense refreshes the dashboard automatically', () async {
+    final expenses = _FakeExpenses([]);
+    final bloc = DashboardBloc(
+      expenses: expenses,
+      tasks: _FakeTasks([]),
+      budget: _FakeBudget(defaultBudget),
+    );
+    final updated = bloc.stream.firstWhere(
+      (state) => state.summary?.totalSpent == 500,
+    );
+
+    await expenses.cacheExpense(_expense('1', 'Food', 500));
+    final state = await updated;
+
+    expect(state.summary!.remaining, 49500);
+    expect(state.summary!.recentExpenses, hasLength(1));
 
     bloc.close();
   });

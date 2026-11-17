@@ -51,11 +51,11 @@ lib/
     ├── expenses/
     │   ├── data/                # local data source + repository impl
     │   ├── domain/              # Expense entity + ExpenseRepository
-    │   └── presentation/pages/expenses_page.dart
+    │   └── presentation/        # list page + add sheet
     ├── tasks/
     │   ├── data/                # local data source + repository impl
     │   ├── domain/              # TaskItem entity + TaskRepository
-    │   └── presentation/pages/tasks_page.dart
+    │   └── presentation/        # list page + add sheet
     ├── home/
     │   ├── data/                # budget local data source + repository impl
     │   ├── domain/              # DashboardSummary, BudgetRepository
@@ -74,8 +74,12 @@ lib/
 - Events are imperative intents (`AuthSignInRequested`); states are snapshots
   (`AuthStatus`, user, error message).
 - Blocs call repository interfaces, never data sources or Hive boxes directly.
-- Provide blocs once near the root with `BlocProvider` and resolve them through
-  `getIt`. Add `BlocListener` for one-off effects like navigation and snackbars.
+- `ExpenseRepository` and `TaskRepository` expose a `changes` stream. Local writes
+  emit on it, so list pages and the dashboard bloc refresh without pages having
+  to know about each other.
+- Provide blocs once near the root with `BlocProvider` and domain repositories
+  with `RepositoryProvider`; resolve the instances through `getIt`. Add
+  `BlocListener` for one-off effects like navigation and snackbars.
 
 ## Navigation (go_router)
 
@@ -184,6 +188,20 @@ name, email and a placeholder avatar. Expenses and Tasks buttons navigate with
 only dispatches `AuthSignOutRequested` after the user confirms; `authRedirect()`
 then moves to login.
 
+## Expenses and tasks
+
+Both list pages read their records from the injected domain repository and
+subscribe to `changes`. Their floating action buttons open modal add sheets:
+
+- Expense sheet: title, amount, category and date; saves an `Expense` with a
+  generated UUID through `ExpenseRepository`.
+- Task sheet: title, category, optional note and optional due date; saves a
+  `TaskItem` through `TaskRepository`.
+- The Home dashboard's add buttons open the same sheets directly; its "See all"
+  links navigate to the full list pages.
+- Saving emits a repository change, so the current list and the dashboard both
+  update immediately. Records are still local-only until sync is implemented.
+
 ## Theming
 
 `AppTheme` in `lib/core/theme/app_theme.dart` builds light and dark `ThemeData`
@@ -195,9 +213,9 @@ buttons, app bars) is centralized there — pages should not hard-code colors.
 
 - Unit tests: blocs and repositories with mocked domain repositories/data sources
   (`AuthBloc`, dashboard totals/budget persistence and `SearchBloc`).
-- Widget tests: pages with mocked/replaced blocs, including the dashboard summary,
-  recent-activity actions, search results, profile sign-out and bottom navigation
-  branch switching.
+- Widget tests: pages with mocked/replaced blocs and repositories, including the
+  dashboard summary, expense/task add sheets, search results, profile sign-out
+  and bottom navigation branch switching.
 - Keep tests free of real plugin calls; inject `SecureStorageService` and Hive
   boxes where needed.
 

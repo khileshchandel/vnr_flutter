@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../expenses/domain/repositories/expense_repository.dart';
@@ -17,11 +19,28 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   }) : super(const DashboardState()) {
     on<DashboardStarted>((event, emit) => emit(_buildState()));
     on<BudgetUpdated>(_onBudgetUpdated);
+
+    // Adding an expense or task on another tab refreshes the dashboard.
+    _expenseSubscription = _expenses.changes.listen((_) {
+      add(const DashboardStarted());
+    });
+    _taskSubscription = _tasks.changes.listen((_) {
+      add(const DashboardStarted());
+    });
   }
 
   final ExpenseRepository _expenses;
   final TaskRepository _tasks;
   final BudgetRepository _budget;
+  StreamSubscription<void>? _expenseSubscription;
+  StreamSubscription<void>? _taskSubscription;
+
+  @override
+  Future<void> close() async {
+    await _expenseSubscription?.cancel();
+    await _taskSubscription?.cancel();
+    return super.close();
+  }
 
   Future<void> _onBudgetUpdated(
     BudgetUpdated event,

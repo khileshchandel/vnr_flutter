@@ -6,7 +6,11 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../expenses/domain/entities/expense.dart';
+import '../../../expenses/domain/repositories/expense_repository.dart';
+import '../../../expenses/presentation/widgets/add_expense_sheet.dart';
 import '../../../tasks/domain/entities/task_item.dart';
+import '../../../tasks/domain/repositories/task_repository.dart';
+import '../../../tasks/presentation/widgets/add_task_sheet.dart';
 import '../../domain/entities/dashboard_summary.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../bloc/dashboard_event.dart';
@@ -377,13 +381,21 @@ class _RecentTabs extends StatelessWidget {
                 _RecentSection(
                   label: 'Recent tasks',
                   addLabel: 'Add task',
-                  route: AppRoutes.tasks,
+                  onAdd: () => showAddTaskSheet(
+                    context,
+                    repository: context.read<TaskRepository>(),
+                  ),
+                  onSeeAll: () => context.go(AppRoutes.tasks),
                   child: _TaskList(tasks: summary.recentTasks),
                 ),
                 _RecentSection(
                   label: 'Recent expenses',
                   addLabel: 'Add expense',
-                  route: AppRoutes.expenses,
+                  onAdd: () => showAddExpenseSheet(
+                    context,
+                    repository: context.read<ExpenseRepository>(),
+                  ),
+                  onSeeAll: () => context.go(AppRoutes.expenses),
                   child: _ExpenseList(expenses: summary.recentExpenses),
                 ),
               ],
@@ -399,13 +411,15 @@ class _RecentSection extends StatelessWidget {
   const _RecentSection({
     required this.label,
     required this.addLabel,
-    required this.route,
+    required this.onAdd,
+    required this.onSeeAll,
     required this.child,
   });
 
   final String label;
   final String addLabel;
-  final String route;
+  final VoidCallback onAdd;
+  final VoidCallback onSeeAll;
   final Widget child;
 
   @override
@@ -427,12 +441,9 @@ class _RecentSection extends StatelessWidget {
             IconButton(
               tooltip: addLabel,
               icon: const Icon(Icons.add_outlined),
-              onPressed: () => context.push(route),
+              onPressed: onAdd,
             ),
-            TextButton(
-              onPressed: () => context.push(route),
-              child: const Text('See all'),
-            ),
+            TextButton(onPressed: onSeeAll, child: const Text('See all')),
           ],
         ),
         Expanded(child: child),
