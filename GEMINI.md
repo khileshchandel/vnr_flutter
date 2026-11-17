@@ -17,8 +17,9 @@ changes; it is the source of truth for stack, structure and conventions.
   `lib/core/storage/secure_storage_service.dart`;
   HTTP: `lib/core/network/api_client.dart`, global search via
   `lib/features/search/`.
-- Current scope: auth and the global search client call the real API; expense/task
-  UIs are still stubbed.
+- Current scope: auth and the global search client call the real API; the home
+  dashboard renders local expense/task summaries with an editable budget; the
+  search UI and expense/task list/add UIs are still stubbed.
 
 ## Expectations
 

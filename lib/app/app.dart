@@ -7,6 +7,8 @@ import '../core/theme/app_theme.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/bloc/auth_event.dart';
 import '../features/auth/presentation/bloc/auth_state.dart';
+import '../features/home/presentation/bloc/dashboard_bloc.dart';
+import '../features/home/presentation/bloc/dashboard_event.dart';
 import 'router/app_router.dart';
 
 /// Root widget for E Track.
@@ -22,6 +24,9 @@ class ETrackApp extends StatelessWidget {
       providers: [
         BlocProvider<AuthBloc>(
           create: (_) => getIt<AuthBloc>()..add(const AuthCheckRequested()),
+        ),
+        BlocProvider<DashboardBloc>(
+          create: (_) => getIt<DashboardBloc>()..add(const DashboardStarted()),
         ),
       ],
       child: BlocListener<AuthBloc, AuthState>(

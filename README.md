@@ -8,8 +8,9 @@ available.
 > left untouched for now.
 
 > **Status:** architecture, theming, routing, DI, storage and state scaffolding
-> are in place for expenses and tasks. Sign-in/sign-up, session restore and global
-> search call the real API. Expense/task UIs are still stubbed.
+> are in place. Sign-in/sign-up, session restore, the global search client and
+> the dashboard home screen are implemented. Expense/task list/add UIs are still
+> stubbed.
 
 ## Stack
 
@@ -66,8 +67,9 @@ lib/
     theme/app_theme.dart          # minimal light + dark Material 3 themes
   features/
     auth/                         # login flow (data / domain / presentation)
-    expenses/                     # expense entity, Hive data source, placeholder page
-    tasks/                        # task entity, Hive data source, placeholder page
+    expenses/                     # entity, local data source, repository, placeholder page
+    tasks/                        # entity, local data source, repository, placeholder page
+    home/                         # dashboard: budget, summary bloc, charts, tabs
     search/                       # global search client (API -> domain)
 ```
 
@@ -84,16 +86,21 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules and the offline sync plan
   token is kept in `flutter_secure_storage` and API error messages reach the UI.
 - Expense and task entities with Hive-backed local data sources are ready for
   the feature UIs. Tasks support categories: Personal, Work, Travel, Food, Other.
+- Dashboard home screen with an editable total budget (default ₹50,000, saved in
+  Hive), total spend, remaining balance, a progress bar and a category donut
+  drawn with `CustomPainter`. Recent tasks and expenses appear in tabs.
 - Global search client calls `GET /api/search` with the stored bearer token and
   parses combined expense/task results.
 
 ## Next phase
 
 1. Add token refresh and automatic retry for expired tokens.
-2. Build the expense list/add flow on top of `ExpenseLocalDataSource`.
-3. Build the task list/add flow on top of `TaskLocalDataSource`.
-4. Wire `SearchRepository` into a search UI with a `SearchBloc`.
-5. Add the outbox sync worker and conflict handling.
+2. Build the expense list/add flow on top of `ExpenseRepository`; the dashboard
+   already reads those records, so new expenses appear after refresh.
+3. Build the task list/add flow on top of `TaskRepository`.
+4. Switch the dashboard totals to the sync API once expense CRUD lands.
+5. Wire `SearchRepository` into a search UI with a `SearchBloc`.
+6. Add the outbox sync worker and conflict handling.
 
 ## Related documents
 

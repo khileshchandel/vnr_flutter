@@ -6,6 +6,7 @@ import '../../features/auth/presentation/bloc/auth_state.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/expenses/presentation/pages/expenses_page.dart';
+import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/tasks/presentation/pages/tasks_page.dart';
 import 'auth_redirect.dart';
 
@@ -35,7 +36,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.home,
       name: 'home',
-      builder: (_, _) => const ExpensesPage(),
+      builder: (_, _) => const HomePage(),
     ),
     GoRoute(
       path: AppRoutes.expenses,

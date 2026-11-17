@@ -16,10 +16,11 @@ Instructions for AI agents and contributors working in this repository.
 ## Current phase
 
 Storage, DI, routing, theming and state scaffolding exist for both expenses and
-tasks. Sign-in and sign-up call the real API through `AuthRemoteDataSource`, and
-the global search client is wired through `SearchRepository`, but neither search
-nor expense/task UIs are built yet. Do not build the full expense/task UI unless
-asked.
+tasks. Sign-in and sign-up call the real API through `AuthRemoteDataSource`; the
+global search client is wired through `SearchRepository`; the `/home` dashboard
+shows an editable budget, spend summary, category donut and recent tasks/expenses
+from local repositories. The search UI and full expense/task list/add flows are
+not built yet. Do not build them unless asked.
 
 ## Rules
 

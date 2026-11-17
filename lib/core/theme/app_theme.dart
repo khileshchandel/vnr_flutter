@@ -8,6 +8,16 @@ abstract final class AppTheme {
   static const Color seedColor = Color(0xFF2F6F5E);
   static const double radius = 14;
 
+  /// Stable accent colors for category charts, shared by light and dark themes.
+  static const List<Color> chartPalette = <Color>[
+    Color(0xFF2F6F5E),
+    Color(0xFFD98E3A),
+    Color(0xFF6A7FB5),
+    Color(0xFFB05B6A),
+    Color(0xFF7A6FA8),
+    Color(0xFF4E8C9B),
+  ];
+
   static ThemeData get light => _build(Brightness.light);
 
   static ThemeData get dark => _build(Brightness.dark);

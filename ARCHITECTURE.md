@@ -1,8 +1,8 @@
 # E Track Flutter Architecture
 
 Clean architecture with a `core/` folder for cross-cutting concerns and
-`features/` for business capabilities — currently expenses and tasks. Android is
-the only actively supported platform.
+`features/` for business capabilities — auth, expenses, tasks, home dashboard and
+search. Android is the only actively supported platform.
 
 ## Dependency rule
 
@@ -47,13 +47,17 @@ lib/
     │   ├── domain/              # AppUser, AuthRepository
     │   └── presentation/        # AuthBloc, pages
     ├── expenses/
-    │   ├── data/datasources/expense_local_data_source.dart
-    │   ├── domain/entities/expense.dart
+    │   ├── data/                # local data source + repository impl
+    │   ├── domain/              # Expense entity + ExpenseRepository
     │   └── presentation/pages/expenses_page.dart
     ├── tasks/
-    │   ├── data/datasources/task_local_data_source.dart
-    │   ├── domain/entities/task_item.dart
+    │   ├── data/                # local data source + repository impl
+    │   ├── domain/              # TaskItem entity + TaskRepository
     │   └── presentation/pages/tasks_page.dart
+    ├── home/
+    │   ├── data/                # budget local data source + repository impl
+    │   ├── domain/              # DashboardSummary, BudgetRepository
+    │   └── presentation/        # DashboardBloc, HomePage, custom painters
     └── search/
         ├── data/                # remote data source + repository impl
         ├── domain/              # SearchResult entity + SearchRepository
@@ -73,8 +77,11 @@ lib/
 
 `appRouter` in `lib/app/router/app_router.dart` is the single route table. Pages
 use `context.go(AppRoutes.x)` / `context.push(...)` rather than `Navigator.of`.
-Auth-aware redirects will be added once the API login is implemented; until
-then `SplashPage` reacts to `AuthBloc` state and routes to login/home.
+Auth navigation is owned by `authRedirect()`: successful sign-in moves splash
+and login to the home dashboard, sign-out returns to login, and unauthenticated
+users are redirected to login. `ETrackApp` mirrors `AuthBloc` status into a
+`ValueNotifier` used as GoRouter's `refreshListenable`; pages do not listen to
+`AuthBloc` for navigation.
 
 ## Storage
 
@@ -84,7 +91,8 @@ then `SplashPage` reacts to `AuthBloc` state and routes to login/home.
 | Expenses | Hive box `etrack_expenses` | `ExpenseLocalDataSource` |
 | Tasks | Hive box `etrack_tasks` | `TaskLocalDataSource` |
 | Offline sync outbox | Hive box `etrack_pending_sync` | `HiveService.pendingSyncBox` |
-| Settings/preferences | Hive box `etrack_settings` | `HiveService.settingsBox` |
+| Total budget | Hive box `etrack_settings` (`total_budget`) | `BudgetLocalDataSource` / `BudgetRepository` |
+| Other settings | Hive box `etrack_settings` | `HiveService.settingsBox` |
 
 Passwords are never stored locally. Hive initialization happens once in
 `main()` through `HiveService.init()` before `getIt` registrations that depend
@@ -134,6 +142,24 @@ authenticated user, merged newest-first. On the client:
 A `SearchBloc` and search page will be added in the features phase. Search
 results remain read-only from MongoDB for now; local caching comes with sync.
 
+## Dashboard
+
+The `/home` dashboard is built from local data because expense/task CRUD
+endpoints still return `501` on the API:
+
+- `DashboardBloc` depends only on domain repositories: `ExpenseRepository`,
+  `TaskRepository` and `BudgetRepository`.
+- `DashboardSummary` holds the budget, total spend, remaining balance, per-category
+  spend shares and the five most recent expenses/tasks.
+- The budget defaults to ₹50,000, is edited from the summary card and is saved
+  through `BudgetRepository` (Hive settings box).
+- `BudgetProgressBar` and `CategoryDonutChart` are `CustomPainter` widgets, so no
+  chart package is required. Their accent colors come from `AppTheme.chartPalette`.
+- Recent tasks and expenses are shown in tabs on the same page.
+
+When the sync API lands, only the repository implementations need to change;
+the bloc and widgets stay the same.
+
 ## Theming
 
 `AppTheme` in `lib/core/theme/app_theme.dart` builds light and dark `ThemeData`
@@ -143,8 +169,10 @@ buttons, app bars) is centralized there — pages should not hard-code colors.
 
 ## Testing
 
-- Unit tests: blocs and repositories with mocked data sources.
-- Widget tests: pages with a mocked/replaced `AuthBloc`, theme assertions.
+- Unit tests: blocs and repositories with mocked domain repositories/data sources
+  (`AuthBloc`, dashboard totals and budget persistence).
+- Widget tests: pages with mocked/replaced blocs, including the dashboard summary,
+  breakdown and recent-activity tabs.
 - Keep tests free of real plugin calls; inject `SecureStorageService` and Hive
   boxes where needed.
 
